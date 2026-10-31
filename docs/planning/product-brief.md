@@ -33,6 +33,15 @@ The MVP catalogues EPUBs in their existing folders. The user accepted this appro
 
 This scope decision concerns file locations. Classification and browsing within book-manager remain part of the collection-management goal.
 
+## Work identity and duplicate visibility
+
+- Represent each AO3 work once in the collection, even when several EPUB copies exist.
+- Share reading status and personal notes across those copies.
+- Keep track of the location of each EPUB copy.
+- Show a visible duplicate indicator when more than one EPUB copy is associated with an AO3 work.
+
+Grouping applies to the catalogue; the EPUB copies remain in their existing folders. The matching method and the treatment of updated downloads with different content remain open.
+
 ## Current constraints
 
 - Personal use is the initial scope; a public service is not currently requested.
@@ -57,7 +66,8 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 
 ## Questions still open
 
-- How duplicate EPUB copies of the same AO3 work should appear and share reading status or personal notes.
+- How to distinguish identical duplicate copies from different downloaded versions of the same AO3 work.
+- How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
 - How new files and changed file locations should be detected.
 - How files currently move between devices.
 - Which fandom and tag filters best support choosing the next item to read.
