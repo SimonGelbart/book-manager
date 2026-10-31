@@ -8,6 +8,12 @@ The project is initially for the owner's personal use. They have thousands of do
 
 They want to organize the collection, follow what they have read, and find something new to read among downloads they already have.
 
+## Source coverage under review — 2026-11-01
+
+The user challenged the proposal to treat a missing AO3 work link or ID as grounds for manual review, because that would make the application dedicated to AO3. They accepted reviewing genuinely unidentified EPUBs, but the source-specific identification criterion is not settled.
+
+The recommendation is a general EPUB catalogue with optional AO3 enrichment: give catalogue entries their own internal identity, retain external source identifiers when available, and add AO3-specific metadata through extraction rather than requiring every entry to be an AO3 work. Basic non-AO3 EPUB support in the MVP versus a later release still needs the user's decision. The AO3-specific glossary and identity rules below reflect the earlier discovery and must be revisited when that scope is settled.
+
 ## Confirmed needs
 
 - Classify and organize the existing collection.
@@ -158,6 +164,7 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 
 ## Questions still open
 
+- Whether the MVP includes basic support for non-AO3 EPUBs alongside richer AO3 metadata extraction, and how the general work identity relates to source-specific identifiers.
 - What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
 - How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
 - How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
