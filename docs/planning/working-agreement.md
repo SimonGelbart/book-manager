@@ -28,6 +28,10 @@ Keep the default triage labels: `needs-triage`, `needs-info`, `ready-for-agent`,
 
 The user reviewed and approved the setup before it was written. The requirements interview is the next step.
 
+## Interview pacing decision — 2026-10-31
+
+The user requested a sequential interview pace. The rule is recorded in `AGENTS.md` and takes precedence over the grilling skill's default question batching. This lets each answer inform the next question.
+
 ## How we will record progress
 
 Each planning change should state what changed and why. Where relevant, include the constraints, alternatives considered, consequences, and questions still open.
