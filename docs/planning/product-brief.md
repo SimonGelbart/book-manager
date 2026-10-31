@@ -8,11 +8,13 @@ The project is initially for the owner's personal use. They have thousands of do
 
 They want to organize the collection, follow what they have read, and find something new to read among downloads they already have.
 
-## Source coverage under review — 2026-11-01
+## Source coverage — confirmed 2026-11-01
 
-The user challenged the proposal to treat a missing AO3 work link or ID as grounds for manual review, because that would make the application dedicated to AO3. They accepted reviewing genuinely unidentified EPUBs, but the source-specific identification criterion is not settled.
+The MVP includes basic support for non-AO3 EPUBs alongside richer AO3 metadata extraction. The collection that motivated the project is AO3-focused, but the catalogue and personal reading features must support works from other sources.
 
-The recommendation is a general EPUB catalogue with optional AO3 enrichment: give catalogue entries their own internal identity, retain external source identifiers when available, and add AO3-specific metadata through extraction rather than requiring every entry to be an AO3 work. Basic non-AO3 EPUB support in the MVP versus a later release still needs the user's decision. The AO3-specific glossary and identity rules below reflect the earlier discovery and must be revisited when that scope is settled.
+Use a general **Work** with an internal catalogue identity and optional external source identifiers. AO3 identity is optional; AO3 extraction enriches a work with available fandoms, categorized tags, and publication information. Generic EPUBs use their available metadata and support reading status, personal notes, personal ratings, and Likes. Source-specific fields can be unavailable without preventing import or personal tracking. [ADR 0002](../adr/0002-source-independent-work-identity.md) records the architectural consequence.
+
+An ordinary EPUB without an AO3 link can be catalogued normally. Use **Needs review** for genuinely ambiguous identification or conflicting work associations, preserving the file location and available metadata without an uncertain automatic merge. Needs review is an import-review condition, separate from the personal reading status Unknown.
 
 ## Confirmed needs
 
@@ -49,7 +51,7 @@ This scope decision concerns file locations. Classification and browsing within 
 
 ### Missing files and retained information
 
-When a successful rescan establishes that a previously catalogued EPUB copy is missing, retain its last-known location and stored information. If all known EPUB copies of an AO3 work are missing, keep the work in the catalogue and show **Files missing**.
+When a successful rescan establishes that a previously catalogued EPUB copy is missing, retain its last-known location and stored information. If all known EPUB copies of a work are missing, keep the work in the catalogue and show **Files missing**.
 
 Preserve all catalogue information for the work: imported metadata, known downloaded versions and copy records, reading history and status, personal note, personal rating, and Like. Missing files must not automatically delete this information. The user explicitly chose to retain it even when the EPUB copies are no longer available.
 
@@ -59,14 +61,14 @@ A failed or incomplete scan does not establish that a file is missing. Recognizi
 
 The user expects only a few duplicate files in the existing collection. Duplicate detection and grouping remain part of the MVP.
 
-- Represent each AO3 work once in the collection, even when several EPUB copies exist.
+- Represent each work once in the collection, even when several EPUB copies exist.
 - Share reading status and personal notes across those copies.
 - Keep track of the location of each EPUB copy.
 - Show a visible duplicate indicator for identical duplicate EPUB copies.
 - For the MVP, distinguish updated downloaded versions from identical duplicates, such as a ten-chapter copy and a twelve-chapter copy of the same AO3 work.
 - Treat edits to existing chapter text as a different downloaded version even when the chapter count stays the same. Equal chapter counts alone do not establish that EPUB copies are identical duplicates.
-- For the same AO3 work, treat EPUB copies with identical chapter text as duplicates of the same downloaded version when they differ only in covers, fonts, or layout. Keep each copy's file location and show the duplicate indicator. These cosmetic differences do not trigger Text revised or new chapters indicators.
-- Keep different downloaded versions grouped under the same AO3 work.
+- For the same work, treat EPUB copies with identical chapter text as duplicates of the same downloaded version when they differ only in covers, fonts, or layout. Keep each copy's file location and show the duplicate indicator. These cosmetic differences do not trigger Text revised or new chapters indicators.
+- Keep different downloaded versions grouped under the same work.
 
 Grouping applies to the catalogue; the EPUB copies remain in their existing folders. Chapter-text equality and cosmetic differences now have agreed product semantics; the matching and content-comparison methods still need to be specified and validated.
 
@@ -82,17 +84,17 @@ When the app cannot reliably determine which downloaded version is newest, flag 
 
 Use the five reading statuses defined in the [domain glossary](../../CONTEXT.md): Unknown, Unread, Reading, Read, and Dropped. Unknown covers existing downloads whose reading history has not yet been recorded.
 
-Newly imported AO3 works default to **Unknown**. The user accepted this because existing downloads may already have been read. Importing another EPUB copy or downloaded version of an already catalogued work preserves its existing reading status.
+Newly imported works default to **Unknown**. The user accepted this because existing downloads may already have been read. Importing another EPUB copy or downloaded version of an already catalogued work preserves its existing reading status.
 
-For the MVP, provide an optional personal rating for AO3 works marked Read or Dropped. The user chose a 1–5-star scale with half-star steps: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, and 5 stars. A work can be marked Read or Dropped without assigning a personal rating.
+For the MVP, provide an optional personal rating for works marked Read or Dropped. The user chose a 1–5-star scale with half-star steps: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, and 5 stars. A work can be marked Read or Dropped without assigning a personal rating.
 
-Also provide an optional Like button, following the user's Letterboxd-style reference. Like is available on any AO3 work, independently of reading status and personal rating, including works not yet finished or rated. Changing Like leaves reading status and the personal rating unchanged.
+Also provide an optional Like button, following the user's Letterboxd-style reference. Like is available on any work, independently of reading status and personal rating, including works not yet finished or rated. Changing Like leaves reading status and the personal rating unchanged.
 
 These are the user's own assessments, distinct from the work's imported AO3 content rating.
 
 ## Personal notes
 
-For the MVP, provide one editable text note per AO3 work, shared across its EPUB copies and downloaded versions.
+For the MVP, provide one editable text note per work, shared across its EPUB copies and downloaded versions.
 
 Chapter and passage annotations are deferred to the later reader extension.
 
@@ -133,13 +135,13 @@ See [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md), the [architectur
 
 ## Collection browsing and discovery
 
-Provide title and author search in the MVP. Search can be combined with the catalogue filters to find a specific AO3 work within a narrowed collection.
+Provide title and author search in the MVP. Search can be combined with the catalogue filters to find a specific work within a narrowed collection.
 
 Support filters for fandom, reading status, AO3 completion status, and tags alongside word-count constraints. A work must contain all required tags and none of the excluded tags. Combine all active filter rules with AND for the MVP; the user chose this simpler query model.
 
 Provide an optional Complete or Unfinished filter based on the completion status recorded in a downloaded EPUB. Keep this separate from personal reading status: a complete work can be Unread, and an unfinished work can be marked Read for the version already read.
 
-Show the word count as part of an AO3 work's information. The count describes a downloaded version, so different versions of the same work may have different counts.
+Show the word count as part of a work's information when available. The count describes a downloaded version, so different versions of the same work may have different counts. Handling EPUBs without a reported count remains to be clarified.
 
 Support word-count range filtering with optional minimum and maximum values. Either bound can be used alone, both can define a range such as 10,000–50,000 words, or both can be left unset. Combine the word-count constraints with the other selected filters.
 
@@ -164,9 +166,9 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 
 ## Questions still open
 
-- Whether the MVP includes basic support for non-AO3 EPUBs alongside richer AO3 metadata extraction, and how the general work identity relates to source-specific identifiers.
 - What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
-- How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
+- How to match EPUB copies to a work when source identifiers are absent or inconsistent. Optional source identity and review of ambiguous associations are agreed.
+- How to handle a missing reported word count for basic non-AO3 EPUBs.
 - How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.

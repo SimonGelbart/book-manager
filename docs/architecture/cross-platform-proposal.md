@@ -1,6 +1,6 @@
 # Cross-platform architecture proposal
 
-Status: architecture outline, updated 2026-10-31. The user chose Avalonia and .NET/C# after comparing the runtime options. [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md) records that direction; the module details below remain proposed and the platform capability proof is still open.
+Status: architecture outline, updated 2026-11-01. The user chose Avalonia and .NET/C# after comparing the runtime options, then included basic non-AO3 EPUB support. [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md) records the runtime direction and [ADR 0002](../adr/0002-source-independent-work-identity.md) records source-independent work identity; other module details below remain proposed and the platform capability proof is still open.
 
 ## Goal
 
@@ -12,8 +12,8 @@ Build the Linux MVP while keeping Windows compatibility and a later Android app 
 |---|---|
 | Presentation | Render the collection and work details, collect user actions, and adapt layouts to desktop and phone. |
 | Application | Coordinate scanning, import, queries, reading changes, personal ratings, Likes, and notes through a small interface. |
-| Domain | Define AO3 works, downloaded versions, EPUB copies, duplicate rules, filter semantics, and personal reading information. |
-| EPUB metadata | Hide ZIP/package/spine/preface parsing behind an extraction interface. Accept EPUB data supplied by the source adapter and return normalized metadata with diagnostics. |
+| Domain | Define works, downloaded versions, EPUB copies, duplicate rules, filter semantics, and personal reading information. External source identifiers are optional. |
+| EPUB metadata | Hide base EPUB parsing and optional source-specific enrichment behind an extraction interface. Accept EPUB data supplied by the file-source adapter and return available metadata with diagnostics; AO3 preface extraction adds richer source metadata when recognized. |
 | Catalogue | Own persistence and query behavior behind its interface. An embedded SQLite implementation is a candidate, subject to runtime and dependency verification. |
 | Platform adapters | Supply file/folder selection, enumeration, readable EPUB data, access grants, and other platform integrations actually needed by the app. |
 | Runner | Start the application and wire the chosen adapters to the shared modules. |
@@ -35,11 +35,19 @@ Arrows show runtime calls. The runner selects the concrete adapters; shared modu
 
 ## Place adapters where behavior varies
 
-Desktop file access can use filesystem paths. Android document access can use permission-granted content/tree URIs. Represent file locations with opaque references at the shared interface and let the adapter resolve them. Keep AO3 work identity separate from a local location. The platform facts and current plugin limitations are documented in the [runtime research](../research/cross-platform-runtime-options.md).
+Desktop file access can use filesystem paths. Android document access can use permission-granted content/tree URIs. Represent file locations with opaque references at the shared interface and let the adapter resolve them. Keep internal work identity and optional external source identifiers separate from local locations. The platform facts and current plugin limitations are documented in the [runtime research](../research/cross-platform-runtime-options.md).
 
 Share an adapter when its dependency genuinely supports all targets. Introduce separate implementations where behavior differs; avoid creating identical wrappers merely to mirror operating-system names.
 
 The application can run locally on each device. The UI/core separation can use local calls or a runtime bridge; it does not require a hosted backend. Device synchronization remains a later feature, separate from sharing application source code.
+
+## General EPUB catalogue and source enrichment
+
+Each work has an internal catalogue identity. AO3 work IDs and other external identifiers can assist matching, but are not required for an entry to exist. Source-specific metadata remains optional; personal reading status, notes, ratings, and Likes belong to the general work. Review ambiguous matches without treating every non-AO3 EPUB as unidentified.
+
+The file-source adapter supplies EPUB streams and handles platform access. Within the metadata module, base EPUB extraction supplies available metadata and source-specific extraction can add AO3 categories and publication information. This separates file access, source recognition, and catalogue identity without making AO3 a dependency of ordinary import.
+
+Missing optional metadata must remain distinguishable from known values. The [EPUB 3.3 minimum metadata requirements](https://www.w3.org/TR/epub-33/#sec-metadata-elem) do not guarantee word or chapter counts; basic import must accommodate their absence.
 
 ## Runtime comparison and selection
 
@@ -68,7 +76,7 @@ Selected route: Avalonia with a shared C# core. See the [candidate toolchain](..
 
 | Check | Evidence to collect |
 |---|---|
-| Shared implementation | Linux and Android entry projects call the same C# metadata/application implementation, with platform/UI types kept outside that core. |
+| Shared implementation | Linux and Android entry projects call the same C# metadata/application implementation, with platform/UI types kept outside that core. Include a synthetic generic EPUB without AO3 identity alongside the AO3 extraction case. |
 | Linux source access | On Pop!_OS 24.04, launch a minimal window, select a folder, enumerate EPUBs in its subfolders, and read the representative EPUB's metadata through the source adapter. Record the actual display session during this run. |
 | Android source access | On Android 16, select an allowed document tree, enumerate it, and pass an EPUB stream to the same shared extraction implementation. |
 | Local persistence | Save one reading-status change and one personal note in a local SQLite catalogue, close/reopen the app, and recover the saved values on both platforms. |

@@ -31,7 +31,7 @@ Build one vertical slice: choose a folder, enumerate EPUBs recursively, read one
 
 | Check | Status and required evidence |
 |---|---|
-| Shared core and SQLite | Not implemented. Exercise extraction through the public application interface; close/reopen the database and verify the saved status/note. |
+| Shared core and SQLite | Not implemented. Exercise extraction through the public application interface for a generic EPUB without AO3 identity and an AO3 extraction case; close/reopen the database and verify the saved status/note. Source-independent identity was accepted on 2026-11-01 in [ADR 0002](../adr/0002-source-independent-work-identity.md). |
 | Pop!_OS 24.04 | Not run. Record the actual display session, launch the desktop app, select a folder, enumerate subfolders, and import an EPUB. |
 | Android 16 | Not built or run. Install the pinned Android workload and required SDK/JDK, build the Android head, then use a real document-tree grant to enumerate and read an EPUB. |
 | Android retained access | Not run. After app restart and device restart, enumerate and read again through the saved grant. Reopening a bookmark object is insufficient. |
