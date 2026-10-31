@@ -31,6 +31,8 @@ Synchronization of reading status and personal notes between phone and computer 
 
 OR filtering is a possible later feature and is explicitly outside the MVP.
 
+Online AO3 update checking is deferred. The MVP detects changes from newly imported or rescanned EPUBs in the user's downloaded collection.
+
 ## File handling
 
 The MVP catalogues EPUBs in their existing folders. The user accepted this approach, with physical file reorganization left for later rather than importing copies into an application-managed folder.
@@ -84,7 +86,7 @@ Make the read version visible alongside the additional chapters available in an 
 
 Provide an explicit **Mark this version read** action for a selected downloaded version. After catching up in the example, this records the twelve-chapter version as read and clears the new chapters indicator. Retain the earlier information that the ten-chapter version was read. If another known downloaded version still contains additional unread chapters, its new chapters indication remains.
 
-The user confirmed that both what has been read and what remains unread after an update must be visible. Automatic checks against AO3 for updates not yet present in the downloaded collection have not been agreed.
+The user confirmed that both what has been read and what remains unread after an update must be visible. For the MVP, detect updates when a scan imports a newer or changed downloaded version from an EPUB. The available chapter count describes the downloaded collection; the MVP does not check AO3 online for chapters not yet downloaded. Online update checking is a possible later feature.
 
 ## Current constraints
 
@@ -146,7 +148,6 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
 - Whether to support word-count sorting and which downloaded version supplies the displayed and filtered metadata.
-- Whether the MVP detects updates only from imported EPUBs or also checks AO3 online for chapters not yet downloaded.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
 
