@@ -64,7 +64,9 @@ Grouping applies to the catalogue; the EPUB copies remain in their existing fold
 
 Use the newest downloaded version's metadata for the main catalogue and its filters, including tags, word count, and AO3 completion status. Keep older downloaded versions and their stored metadata accessible. Importing an older copy later must not replace newer metadata merely because it was scanned more recently.
 
-Determining which downloaded version is newest when evidence is missing or conflicting remains to be specified. The user's additional phrase "selected status" needs clarification against the existing rule that personal reading status is shared across copies and preserved on import; no change to that rule is recorded yet.
+The user clarified that "selected status" means the newest version's **AO3 completion status** (Complete or Unfinished). Personal reading status and read-version history remain independent and are preserved on import: a work whose ten-chapter version was read can still show **Read; 2 new chapters** after a twelve-chapter version is imported.
+
+Determining which downloaded version is newest when evidence is missing or conflicting remains to be specified.
 
 ## Reading status and personal ratings
 
@@ -154,7 +156,6 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
 - How to determine the newest downloaded version when version evidence is missing or conflicting.
-- Whether "selected status" refers to AO3 completion status or changes the previously agreed personal reading-status behavior.
 - Whether to support word-count sorting.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
