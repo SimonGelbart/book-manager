@@ -41,6 +41,8 @@ OR filtering is a possible later feature and is explicitly outside the MVP.
 
 Online AO3 update checking is deferred. The MVP detects changes from newly imported or rescanned EPUBs in the user's downloaded collection.
 
+Automatic word counting from EPUB text is deferred. The MVP imports reported counts when available and displays **Unknown** when a count is absent.
+
 ## File handling
 
 The MVP catalogues EPUBs in their existing folders. The user accepted this approach, with physical file reorganization left for later rather than importing copies into an application-managed folder.
@@ -141,7 +143,7 @@ Support filters for fandom, reading status, AO3 completion status, and tags alon
 
 Provide an optional Complete or Unfinished filter based on the completion status recorded in a downloaded EPUB. Keep this separate from personal reading status: a complete work can be Unread, and an unfinished work can be marked Read for the version already read.
 
-Show the word count as part of a work's information when available. The count describes a downloaded version, so different versions of the same work may have different counts. Handling EPUBs without a reported count remains to be clarified.
+Show the word count as part of a work's information when available. The count describes a downloaded version, so different versions of the same work may have different counts. For any EPUB without a reported count, display **Unknown** and retain normal catalogue and personal reading features. Do not substitute zero or calculate a count from the text in the MVP.
 
 Support word-count range filtering with optional minimum and maximum values. Either bound can be used alone, both can define a range such as 10,000–50,000 words, or both can be left unset. Combine the word-count constraints with the other selected filters.
 
@@ -168,7 +170,6 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 
 - What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
 - How to match EPUB copies to a work when source identifiers are absent or inconsistent. Optional source identity and review of ambiguous associations are agreed.
-- How to handle a missing reported word count for basic non-AO3 EPUBs.
 - How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
