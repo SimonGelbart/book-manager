@@ -81,13 +81,15 @@ An Android reading capability or integration could be useful. Collection managem
 
 ## Collection browsing and discovery
 
-Support fandom, reading-status, and tag filters alongside word-count constraints. A work must contain all required tags and none of the excluded tags. Combine all active filter rules with AND for the MVP; the user chose this simpler query model.
+Support filters for fandom, reading status, AO3 completion status, and tags alongside word-count constraints. A work must contain all required tags and none of the excluded tags. Combine all active filter rules with AND for the MVP; the user chose this simpler query model.
+
+Provide an optional Complete or Unfinished filter based on the completion status recorded in a downloaded EPUB. Keep this separate from personal reading status: a complete work can be Unread, and an unfinished work can be marked Read for the version already read.
 
 Show the word count as part of an AO3 work's information. The count describes a downloaded version, so different versions of the same work may have different counts.
 
 Support word-count range filtering with optional minimum and maximum values. Either bound can be used alone, both can define a range such as 10,000–50,000 words, or both can be left unset. Combine the word-count constraints with the other selected filters.
 
-Word-count sorting remains to be clarified. When several downloaded versions exist, the choice of which version supplies the displayed count and filtering value is also still open.
+Word-count sorting remains to be clarified. When several downloaded versions exist, the choice of which version supplies the displayed and filtered metadata, including word count and AO3 completion status, is also still open.
 
 ## Metadata investigation
 
@@ -112,8 +114,8 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 - How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
 - How rescans should reconcile moved or missing file locations while preserving work information.
 - How files currently move between devices.
-- Whether any additional metadata filters are essential beyond fandom, tags, reading status, and word count.
-- Whether to support word-count sorting and which downloaded version supplies the displayed count and filtering value.
+- Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
+- Whether to support word-count sorting and which downloaded version supplies the displayed and filtered metadata.
 - How the user records catching up on a newer downloaded version and clears the new chapters indicator.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.

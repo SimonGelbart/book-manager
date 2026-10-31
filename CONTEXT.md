@@ -20,6 +20,9 @@ A snapshot of an AO3 work's content, potentially represented by several EPUB cop
 **Word count**:
 The length of an AO3 work in words as reported by a particular downloaded version.
 
+**AO3 completion status**:
+Whether an AO3 work is complete or unfinished according to the metadata in a downloaded version. It describes the work's publication state, independently of the user's reading status.
+
 **Identical duplicate**:
 An additional EPUB copy containing the same downloaded version without changes to the work's content.
 
