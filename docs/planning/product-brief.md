@@ -73,7 +73,9 @@ An Android reading capability or integration could be useful. Collection managem
 
 Show the word count as part of an AO3 work's information. The count describes a downloaded version, so different versions of the same work may have different counts.
 
-Word-count range filtering and sorting have not yet been confirmed. The broader search and filter combinations also remain to be clarified.
+Support word-count range filtering with optional minimum and maximum values. Either bound can be used alone, both can define a range such as 10,000–50,000 words, or both can be left unset. Combine the word-count constraints with the other selected filters.
+
+Word-count sorting and the broader search and filter combinations remain to be clarified. When several downloaded versions exist, the choice of which version supplies the displayed count and filtering value is also still open.
 
 ## Metadata investigation
 
@@ -97,7 +99,7 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 - How new files and changed file locations should be detected.
 - How files currently move between devices.
 - Which fandom and tag filters best support choosing the next item to read.
-- Whether to support word-count range filtering and sorting.
+- Whether to support word-count sorting and which downloaded version supplies the displayed count and filtering value.
 - How the user records catching up on a newer downloaded version and clears the new chapters indicator.
 - What personal notes should attach to: an entire item, a chapter, or a specific passage.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
