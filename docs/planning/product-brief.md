@@ -80,7 +80,11 @@ Chapter and passage annotations are deferred to the later reader extension.
 
 When a work marked Read receives a newly imported EPUB copy with additional chapters, keep the work marked Read and show a new chapters indicator. Preserve the record that the earlier downloaded version was read.
 
-For example, a work whose ten-chapter version was marked Read stays Read when a twelve-chapter version is imported, with an indication that new chapters are available. How the user records catching up and clears the indicator remains open.
+Make the read version visible alongside the additional chapters available in an imported downloaded version. For example, after importing a twelve-chapter version of a work whose ten-chapter version was marked Read, show **Read: 10 chapters; available: 12 chapters; 2 new chapters**. The reading status remains Read, and the imported update does not advance the reading record automatically.
+
+Provide an explicit **Mark this version read** action for a selected downloaded version. After catching up in the example, this records the twelve-chapter version as read and clears the new chapters indicator. Retain the earlier information that the ten-chapter version was read. If another known downloaded version still contains additional unread chapters, its new chapters indication remains.
+
+The user confirmed that both what has been read and what remains unread after an update must be visible. Automatic checks against AO3 for updates not yet present in the downloaded collection have not been agreed.
 
 ## Current constraints
 
@@ -142,7 +146,7 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
 - Whether to support word-count sorting and which downloaded version supplies the displayed and filtered metadata.
-- How the user records catching up on a newer downloaded version and clears the new chapters indicator.
+- Whether the MVP detects updates only from imported EPUBs or also checks AO3 online for chapters not yet downloaded.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
 
