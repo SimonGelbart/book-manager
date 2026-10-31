@@ -14,7 +14,7 @@ They want to organize the collection, follow what they have read, and find somet
 - Record reading status so previously read items can be identified.
 - Add personal notes.
 - Make existing downloads easier to find and choose from.
-- Reuse information already present in AO3 downloads, especially fandoms and tags, to reduce manual organization.
+- Reuse information already present in AO3 downloads, including fandoms, tags, and word counts, to reduce manual organization.
 - Account for a collection of thousands of EPUBs.
 
 ## Target platforms
@@ -69,9 +69,17 @@ For example, a work whose ten-chapter version was marked Read stays Read when a 
 
 An Android reading capability or integration could be useful. Collection management is the initial priority; an integrated reader is not yet a first-version requirement.
 
+## Collection browsing and discovery
+
+Show the word count as part of an AO3 work's information. The count describes a downloaded version, so different versions of the same work may have different counts.
+
+Word-count range filtering and sorting have not yet been confirmed. The broader search and filter combinations also remain to be clarified.
+
 ## Metadata investigation
 
 AO3's official source passes work tags into the ebook conversion metadata and preserves separate tag groups in the download preface. This supports investigating extraction from both the ebook metadata and the front matter, rather than assuming the metadata alone preserves tag categories.
+
+The download preface also includes the work's reported word count, providing a source to investigate for this field.
 
 Verified against source snapshot `aa99cd45c8b39a60944c4e038a53f5a051098b71`:
 
@@ -89,6 +97,7 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 - How new files and changed file locations should be detected.
 - How files currently move between devices.
 - Which fandom and tag filters best support choosing the next item to read.
+- Whether to support word-count range filtering and sorting.
 - How the user records catching up on a newer downloaded version and clears the new chapters indicator.
 - What personal notes should attach to: an entire item, a chapter, or a specific passage.
 - Whether a reader integration means opening another Android app or reading inside book-manager.

@@ -17,6 +17,9 @@ One downloaded EPUB file containing an AO3 work. Several EPUB copies can represe
 **Downloaded version**:
 A snapshot of an AO3 work's content, potentially represented by several EPUB copies. For example, a download with ten chapters and a later download with twelve chapters are different downloaded versions.
 
+**Word count**:
+The length of an AO3 work in words as reported by a particular downloaded version.
+
 **Identical duplicate**:
 An additional EPUB copy containing the same downloaded version without changes to the work's content.
 
