@@ -1,6 +1,6 @@
 # Cross-platform architecture proposal
 
-Status: proposed on 2026-10-31. The user has confirmed the future Android collection-management goal and suggested frontend/runner adapters. No runtime, language, or UI framework has been selected.
+Status: architecture outline, updated 2026-10-31. The user chose Avalonia and .NET/C# after comparing the runtime options. [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md) records that direction; the module details below remain proposed and the platform capability proof is still open.
 
 ## Goal
 
@@ -41,18 +41,18 @@ Share an adapter when its dependency genuinely supports all targets. Introduce s
 
 The application can run locally on each device. The UI/core separation can use local calls or a runtime bridge; it does not require a hosted backend. Device synchronization remains a later feature, separate from sharing application source code.
 
-## Runtime shortlist
+## Runtime comparison and selection
 
 - **Avalonia with .NET/C#:** the recommended first candidate to validate now that the user's .NET/C# experience is known. It can keep the shared application/domain implementation in a familiar language. Its storage abstraction already covers Android folder selection, streams, and bookmarks; actual device support and retained access still need verification. Avalonia UI, styling, and adaptive layouts are new framework work unless the user has prior experience with them.
 - **React with Tauri 2:** the main alternative when retaining React is the stronger preference. Shared Rust application logic and the React frontend can serve all three targets, with platform integrations behind adapters. Its official dialog plugin currently lacks Android folder picking, so a suitable integration must be proved. This adds Rust learning and potentially a Kotlin adapter.
 - **Flutter:** remains a technically viable alternative, but is no longer the default recommendation given existing C# and React experience. It would need a concrete advantage to justify learning Dart and a different UI stack.
 - **Browser-only application:** possible, with browser file-access and persistence constraints to validate against the existing-folder workflow. Sharing web UI code does not require choosing browser-only deployment.
 
-These are conditional recommendations, not an accepted stack decision. The [skills-based runtime research](../research/runtime-fit-existing-skills.md) records the verified capabilities and trade-offs, including Avalonia support tiers and the distinction between Avalonia and Microsoft's official .NET MAUI targets.
+The user selected **Avalonia and .NET** from this comparison. The alternatives remain recorded to explain the trade-off. The [skills-based runtime research](../research/runtime-fit-existing-skills.md) records the verified capabilities and limits, including Avalonia support tiers and the distinction between Avalonia and Microsoft's official .NET MAUI targets.
 
 For the Avalonia candidate, keep the shared C# core independent of Avalonia types. A storage adapter translates picked storage items and bookmarks into the source interface and supplies readable EPUB data. The UI and platform entry projects reference the shared implementation; each runner wires the required integrations.
 
-## Evidence needed before choosing the runtime
+## Evidence needed to validate the selected runtime
 
 The user has confirmed Android 16 as the current phone target. Avalonia's current support matrix lists Android 16/API 36 on ARM64 and x64 as Tier 1. The phone's actual import, retained-access, and persistence workflow still needs a device test. The Linux target is Pop!_OS 24.04. See the [current platform matrix](https://docs.avaloniaui.net/docs/supported-platforms).
 
@@ -60,11 +60,11 @@ Check Pop!_OS directly rather than assuming it inherits Ubuntu's formal support 
 
 Prove a small import-and-persistence workflow on Linux and Android with the intended dependencies: select a source, read an EPUB, extract its metadata, save a reading change, and reopen the data after restart. On Android, include the document-tree grant and retained-access workflow. Verify Windows build and packaging support separately.
 
-This is a proposed technical proof, not an implemented prototype or an expansion of the Android MVP scope. A final runtime ADR should follow the actual target OS/version checks, capability proof, and the user's decision.
+This technical proof is not yet implemented and does not expand the Android MVP scope. The user's explicit runtime choice is recorded in ADR 0001 before the proof; the proof must establish target-platform fitness, and a failure can require revisiting that decision.
 
-## Proposed first capability proof
+## First capability proof
 
-Candidate: Avalonia with a shared C# core. The user has not yet selected the candidate for this proof.
+Selected route: Avalonia with a shared C# core. See the [candidate toolchain](../research/validation-toolchain.md) and [execution record](../research/avalonia-proof-execution.md).
 
 | Check | Evidence to collect |
 |---|---|
@@ -77,4 +77,4 @@ Candidate: Avalonia with a shared C# core. The user has not yet selected the can
 
 Keep this proof focused on import, platform access, and one persisted reading record. The full collection UI, filters, ratings, synchronization, and reader remain outside the proof. Use the private representative EPUB locally and synthetic metadata fixtures in the repository.
 
-Record exact package/SDK versions and observed results. Failures in Linux rendering, file picking, Android retained access, or native SQLite assets should inform the runtime choice before an accepted stack ADR.
+Record exact package/SDK versions and observed results. Failures in Linux rendering, file picking, Android retained access, or native SQLite assets must be assessed before building the MVP on this foundation; revise ADR 0001 if a failure changes the selected direction.

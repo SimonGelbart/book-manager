@@ -27,7 +27,7 @@ They want to organize the collection, follow what they have read, and find somet
 
 ## MVP scope boundary
 
-Synchronization of reading status and personal notes between phone and computer is a desired feature, but is not required for the MVP. Application form and packaging remain undecided.
+Synchronization of reading status and personal notes between phone and computer is a desired feature, but is not required for the MVP. The user chose an Avalonia application with .NET/C#; installation and packaging remain undecided.
 
 OR filtering is a possible later feature and is explicitly outside the MVP.
 
@@ -79,17 +79,19 @@ For example, a work whose ten-chapter version was marked Read stays Read when a 
 
 ## Development experience
 
-The user is familiar with .NET/C#, Python, and React. They are willing to try Kotlin, Rust, or Go when there is a concrete benefit, and can learn another language if needed. No requirement to retain a specific UI framework has been stated.
+The user is familiar with .NET/C#, Python, and React. They are willing to try Kotlin, Rust, or Go when there is a concrete benefit, and can learn another language if needed. After comparing the options, they chose Avalonia and .NET.
 
 ## Possible later extension
 
 The future Android app should offer similar collection-management capabilities. It could also include a reader or reader integration. Collection management is the initial priority; an integrated reader is not a first-version requirement.
 
-## Architecture direction under discussion
+## Chosen architecture direction
 
 The user proposed separating the frontend from the runner with adapters, and emphasized planning for Linux, Windows, and Android together. A desktop-specific implementation should not determine the shared collection and reading logic.
 
-See the [cross-platform architecture proposal](../architecture/cross-platform-proposal.md), [runtime research](../research/cross-platform-runtime-options.md), and [runtime fit with existing skills](../research/runtime-fit-existing-skills.md). The proposal separates shared application/domain modules from platform integrations. Runtime, language, UI framework, and adapter details remain open decisions.
+Use Avalonia with a shared .NET/C# application core, with separate desktop and Android entry projects. Keep platform file access behind adapters and keep UI/platform types outside the shared collection and reading logic. This is the user's selected direction; successful operation on the target devices has not yet been demonstrated.
+
+See [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md), the [architecture proposal](../architecture/cross-platform-proposal.md), and the [runtime research](../research/runtime-fit-existing-skills.md). The small import-and-persistence proof remains the next technical gate. Package versions, SQLite, and packaging are validation candidates rather than separately accepted production decisions.
 
 ## Collection browsing and discovery
 
@@ -134,4 +136,4 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 
 ## Interview record — 2026-10-31
 
-The initial purpose is now established: manage a personal AO3 EPUB collection, track reading, add notes, and make the existing collection easier to browse. The MVP starts on the computer, targeting the user's Linux system with Windows compatibility preferred. No application stack, storage design, hosting approach, synchronization mechanism, or packaging has been chosen.
+The initial purpose is now established: manage a personal AO3 EPUB collection, track reading, add notes, and make the existing collection easier to browse. The MVP starts on the computer, targeting the user's Linux system with Windows compatibility preferred. The subsequent runtime discussion settled on Avalonia and .NET/C#; device validation, storage design, synchronization, and packaging remain open.
