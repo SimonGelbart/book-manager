@@ -17,11 +17,15 @@ They want to organize the collection, follow what they have read, and find somet
 - Reuse information already present in AO3 downloads, especially fandoms and tags, to reduce manual organization.
 - Account for a collection of thousands of EPUBs.
 
-The files currently live on both phone and computer. Which devices the first version supports remains an open question.
+## Target platforms
+
+- The MVP starts on the computer.
+- Linux is the user's current system and the initial target.
+- Windows compatibility is preferred. It has not been stated as a mandatory condition for the MVP.
 
 ## MVP scope boundary
 
-Synchronization of reading status and personal notes between phone and computer is a desired feature, but is not required for the MVP. The first release's device coverage and storage approach remain undecided.
+Synchronization of reading status and personal notes between phone and computer is a desired feature, but is not required for the MVP. File management, application form, and packaging remain undecided.
 
 ## Current constraints
 
@@ -47,14 +51,14 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 
 ## Questions still open
 
-- Which device should be the primary place for managing the collection.
+- Whether importing should index files in their existing locations or copy them into a managed collection folder.
 - How files currently move between devices, and whether duplicate downloads occur.
 - Which fandom and tag filters best support choosing the next item to read.
 - What reading states the user needs beyond identifying already-read items.
 - What personal notes should attach to: an entire item, a chapter, or a specific passage.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
-- Operating systems, existing tools, storage arrangements, and other fixed constraints.
+- Installation expectations, existing tools, storage arrangements, and other fixed constraints.
 
 ## Interview record — 2026-10-31
 
-The initial purpose is now established: manage a personal AO3 EPUB collection, track reading, add notes, and make the existing collection easier to browse. No application stack, storage design, hosting approach, synchronization mechanism, or first-release device coverage has been chosen.
+The initial purpose is now established: manage a personal AO3 EPUB collection, track reading, add notes, and make the existing collection easier to browse. The MVP starts on the computer, targeting the user's Linux system with Windows compatibility preferred. No application stack, storage design, hosting approach, synchronization mechanism, or packaging has been chosen.
