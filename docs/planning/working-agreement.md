@@ -20,6 +20,14 @@ Local Markdown task files were considered. GitHub Issues was chosen to make work
 
 Repository documents are the source of truth for requirements and design. Issues reference those documents and carry task-specific acceptance criteria and progress.
 
+## Repository setup decision — 2026-10-31
+
+Use `AGENTS.md` as the repository's agent instruction file. It points to the approved issue-tracker, triage-label, and domain-documentation conventions under `docs/agents/`.
+
+Keep the default triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. This lets the Matt Pocock workflows use their standard vocabulary without a custom mapping.
+
+The user reviewed and approved the setup before it was written. The requirements interview is the next step.
+
 ## How we will record progress
 
 Each planning change should state what changed and why. Where relevant, include the constraints, alternatives considered, consequences, and questions still open.
@@ -51,4 +59,3 @@ The branch, use of Matt Pocock Skills, and regular commits are agreed. Product r
 - Who will use book-manager, and what problem should it solve?
 - What is the first complete, useful workflow?
 - What constraints should guide its design?
-- Which triage labels and agent instruction file should the Matt Pocock setup use?
