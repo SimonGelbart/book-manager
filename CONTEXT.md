@@ -38,6 +38,9 @@ A downloaded version that the user has explicitly marked as read for an AO3 work
 **New chapters indicator**:
 A signal that an imported downloaded version contains additional chapters beyond the version previously marked Read. It accompanies the Read status while preserving the earlier reading record.
 
+**Text revised indicator**:
+A signal that a newer imported downloaded version revises existing chapter text relative to a read version, including revisions that leave the chapter count unchanged. It is distinct from the new chapters indicator.
+
 **Personal rating**:
 The user's own optional assessment of an AO3 work on a 1–5-star scale in half-star steps, distinct from its AO3 content rating.
 _Avoid_: Grade or rating alone when it could be confused with AO3 content rating.

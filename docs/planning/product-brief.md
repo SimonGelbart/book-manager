@@ -95,6 +95,8 @@ Make the read version visible alongside the additional chapters available in an 
 
 Provide an explicit **Mark this version read** action for a selected downloaded version. After catching up in the example, this records the twelve-chapter version as read and clears the new chapters indicator. Retain the earlier information that the ten-chapter version was read. If another known downloaded version still contains additional unread chapters, its new chapters indication remains.
 
+When a newer downloaded version revises existing chapter text without adding chapters, show **Text revised** while preserving the personal reading status and earlier read-version information. Keep this indicator visible until the user explicitly marks the revised version read with **Mark this version read**. For example, a revised ten-chapter version can show **Read; Text revised** without claiming that new chapters were added.
+
 The user confirmed that both what has been read and what remains unread after an update must be visible. For the MVP, detect updates when a scan imports a newer or changed downloaded version from an EPUB. The available chapter count describes the downloaded collection; the MVP does not check AO3 online for chapters not yet downloaded. Online update checking is a possible later feature.
 
 ## Current constraints
@@ -152,7 +154,6 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 ## Questions still open
 
 - What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
-- How to indicate text revisions in a newer downloaded version when no chapters have been added. Such revisions are agreed to be different downloaded versions.
 - How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
 - How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
 - How files currently move between devices.
