@@ -81,6 +81,8 @@ For example, a work whose ten-chapter version was marked Read stays Read when a 
 
 The user is familiar with .NET/C#, Python, and React. They are willing to try Kotlin, Rust, or Go when there is a concrete benefit, and can learn another language if needed. After comparing the options, they chose Avalonia and .NET.
 
+The user wants the most up-to-date versions possible and is willing to install a different .NET SDK. An SDK already installed on their computer is not a project constraint. The current recommendation is to use the newest stable versions compatible with the desktop and Android targets; prerelease adoption has not been requested explicitly.
+
 ## Possible later extension
 
 The future Android app should offer similar collection-management capabilities. It could also include a reader or reader integration. Collection management is the initial priority; an integrated reader is not a first-version requirement.

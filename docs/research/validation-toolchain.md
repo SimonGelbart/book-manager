@@ -2,6 +2,14 @@
 
 Checked on **2026-10-31** against official release metadata, documentation, and published NuGet artifacts. Avalonia/.NET is the user's selected route for the technical proof. These findings establish candidate dependencies; they do **not** establish successful builds, graphics startup, Android file access, or a production-ready stack.
 
+## Freshness preference and recommendation
+
+The user can install another SDK and wants the most up-to-date versions possible. Recommend the newest stable releases compatible with the desktop and Android projects, with exact pins for reproducible builds and deliberate updates as releases become available.
+
+Rechecked on 2026-10-31: **.NET SDK 10.0.403** is already the latest stable SDK, and **Avalonia 12.1.4** is the latest stable Avalonia package. **.NET 11** is available as a release candidate, `11.0.100-rc.3.26522.148`; it is not yet the stable baseline. Keep the .NET 10 candidate for the proof, then assess .NET 11 after its stable release and Android/Avalonia compatibility checks. No downgrade is proposed to work around the agent workspace's startup failure. [D7], [A11]
+
+Latest compatible does not mean every dependency's highest major version: Android workloads, JDK, and native SQLite assets must form a supported, working combination. Record any intentional version lag and its reason, and reassess it when updating the toolchain.
+
 ## Candidate pins
 
 | Component | Candidate pin | Verified basis |
@@ -51,6 +59,7 @@ This research performed no application build or device test. Record SDK/workload
 [D4]: https://learn.microsoft.com/en-us/dotnet/android/getting-started/installation/dependencies "Android SDK/JDK requirements and dependency installation target"
 [D5]: https://learn.microsoft.com/en-us/java/openjdk/download "Microsoft OpenJDK versions and platform downloads"
 [D6]: https://github.com/dotnet/android/blob/36.1.118/Configuration.props "Pinned Android source: API, build-tools and platform-tools versions"
+[D7]: https://builds.dotnet.microsoft.com/dotnet/release-metadata/releases-index.json "Current stable and prerelease SDK channels"
 [A1]: https://www.nuget.org/packages/Avalonia/12.1.4 "Avalonia stable package and included frameworks"
 [A2]: https://www.nuget.org/packages/Avalonia.Desktop/12.1.4 "Desktop target and dependencies"
 [A3]: https://www.nuget.org/packages/Avalonia.Android/12.1.4 "Android 36 target and AndroidX dependencies"
@@ -61,6 +70,7 @@ This research performed no application build or device test. Record SDK/workload
 [A8]: https://www.nuget.org/packages/Avalonia.Skia/12.1.4 "SkiaSharp and HarfBuzzSharp dependency groups"
 [A9]: https://www.nuget.org/packages/Avalonia.HarfBuzz/12.1.4 "HarfBuzz native dependency groups"
 [A10]: https://docs.avaloniaui.net/docs/platform-specific-guides/linux "Linux native libraries and display backends"
+[A11]: https://www.nuget.org/packages/Avalonia "Latest stable Avalonia package"
 [S1]: https://www.nuget.org/packages/Microsoft.Data.Sqlite/10.0.14 "Microsoft managed SQLite provider and dependencies"
 [S2]: https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3/2.1.14 "Selected SQLitePCLRaw maintenance version"
 [S3]: https://learn.microsoft.com/en-us/dotnet/standard/data/sqlite/custom-versions "Microsoft's native bundle and initialization documentation"
