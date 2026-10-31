@@ -15,7 +15,7 @@ _Avoid_: Book, story in project documentation when this specific concept is inte
 One downloaded EPUB file containing an AO3 work. Several EPUB copies can represent the same or different downloaded versions of that work.
 
 **Downloaded version**:
-A snapshot of an AO3 work's content, potentially represented by several EPUB copies. For example, a download with ten chapters and a later download with twelve chapters are different downloaded versions.
+A snapshot of an AO3 work's content, potentially represented by several EPUB copies. A download with ten chapters and a later download with twelve chapters are different downloaded versions. A revision to existing chapter text also creates a different downloaded version, even when the chapter count stays the same.
 
 **Word count**:
 The length of an AO3 work in words as reported by a particular downloaded version.

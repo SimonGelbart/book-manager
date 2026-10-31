@@ -56,6 +56,7 @@ A failed or incomplete scan does not establish that a file is missing. Recognizi
 - Keep track of the location of each EPUB copy.
 - Show a visible duplicate indicator for identical duplicate EPUB copies.
 - For the MVP, distinguish updated downloaded versions from identical duplicates, such as a ten-chapter copy and a twelve-chapter copy of the same AO3 work.
+- Treat edits to existing chapter text as a different downloaded version even when the chapter count stays the same. Equal chapter counts alone do not establish that EPUB copies are identical duplicates.
 - Keep different downloaded versions grouped under the same AO3 work.
 
 Grouping applies to the catalogue; the EPUB copies remain in their existing folders. The matching method and exact criteria for identifying identical content remain open.
@@ -151,6 +152,7 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 ## Questions still open
 
 - What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
+- How to indicate text revisions in a newer downloaded version when no chapters have been added. Such revisions are agreed to be different downloaded versions.
 - How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
 - How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
 - How files currently move between devices.
