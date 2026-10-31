@@ -48,7 +48,11 @@ Grouping applies to the catalogue; the EPUB copies remain in their existing fold
 
 Use the five reading statuses defined in the [domain glossary](../../CONTEXT.md): Unknown, Unread, Reading, Read, and Dropped. Unknown covers existing downloads whose reading history has not yet been recorded. The default status on import remains undecided.
 
-The user proposed a personal rating for AO3 works marked Read or Dropped. This is the user's assessment, distinct from the work's imported AO3 content rating. The grading scale, whether a rating is optional, and its first-release scope remain open for the next interview step.
+For the MVP, provide an optional personal rating for AO3 works marked Read or Dropped. The user chose a 1–5-star scale with half-star steps: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, and 5 stars. A work can be marked Read or Dropped without assigning a personal rating.
+
+Also provide a Like button, following the user's Letterboxd-style reference. Its availability across reading statuses and without a personal rating remains to be clarified.
+
+These are the user's own assessments, distinct from the work's imported AO3 content rating.
 
 ## Current constraints
 
@@ -79,7 +83,7 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 - How new files and changed file locations should be detected.
 - How files currently move between devices.
 - Which fandom and tag filters best support choosing the next item to read.
-- The personal rating scale, whether rating is optional, and whether it belongs in the MVP.
+- Whether Like is available on any AO3 work, independent of reading status and personal rating.
 - How a downloaded version with additional chapters should affect reading status and previously recorded reading history.
 - What personal notes should attach to: an entire item, a chapter, or a specific passage.
 - Whether a reader integration means opening another Android app or reading inside book-manager.

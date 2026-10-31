@@ -27,8 +27,11 @@ A visible indication that identical duplicate EPUB copies exist for an AO3 work.
 The user's declared progress state for an AO3 work: Unknown, Unread, Reading, Read, or Dropped. It is shared across that work's EPUB copies.
 
 **Personal rating**:
-The user's own assessment of an AO3 work, distinct from its AO3 content rating.
+The user's own optional assessment of an AO3 work on a 1–5-star scale in half-star steps, distinct from its AO3 content rating.
 _Avoid_: Grade or rating alone when it could be confused with AO3 content rating.
+
+**Like**:
+The user's explicit indication that they like an AO3 work, distinct from its numeric personal rating.
 
 **AO3 content rating**:
 AO3's classification of a work's content, separate from the user's personal rating.
