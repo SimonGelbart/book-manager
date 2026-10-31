@@ -25,7 +25,13 @@ They want to organize the collection, follow what they have read, and find somet
 
 ## MVP scope boundary
 
-Synchronization of reading status and personal notes between phone and computer is a desired feature, but is not required for the MVP. File management, application form, and packaging remain undecided.
+Synchronization of reading status and personal notes between phone and computer is a desired feature, but is not required for the MVP. Application form and packaging remain undecided.
+
+## File handling
+
+The MVP catalogues EPUBs in their existing folders. The user accepted this approach, with physical file reorganization left for later rather than importing copies into an application-managed folder.
+
+This scope decision concerns file locations. Classification and browsing within book-manager remain part of the collection-management goal.
 
 ## Current constraints
 
@@ -51,8 +57,9 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 
 ## Questions still open
 
-- Whether importing should index files in their existing locations or copy them into a managed collection folder.
-- How files currently move between devices, and whether duplicate downloads occur.
+- How duplicate EPUB copies of the same AO3 work should appear and share reading status or personal notes.
+- How new files and changed file locations should be detected.
+- How files currently move between devices.
 - Which fandom and tag filters best support choosing the next item to read.
 - What reading states the user needs beyond identifying already-read items.
 - What personal notes should attach to: an entire item, a chapter, or a specific passage.
