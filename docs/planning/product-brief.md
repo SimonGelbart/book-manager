@@ -52,7 +52,9 @@ Grouping applies to the catalogue; the EPUB copies remain in their existing fold
 
 ## Reading status and personal ratings
 
-Use the five reading statuses defined in the [domain glossary](../../CONTEXT.md): Unknown, Unread, Reading, Read, and Dropped. Unknown covers existing downloads whose reading history has not yet been recorded. The default status on import remains undecided.
+Use the five reading statuses defined in the [domain glossary](../../CONTEXT.md): Unknown, Unread, Reading, Read, and Dropped. Unknown covers existing downloads whose reading history has not yet been recorded.
+
+Newly imported AO3 works default to **Unknown**. The user accepted this because existing downloads may already have been read. Importing another EPUB copy or downloaded version of an already catalogued work preserves its existing reading status.
 
 For the MVP, provide an optional personal rating for AO3 works marked Read or Dropped. The user chose a 1–5-star scale with half-star steps: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, and 5 stars. A work can be marked Read or Dropped without assigning a personal rating.
 
