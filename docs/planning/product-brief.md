@@ -33,6 +33,8 @@ OR filtering is a possible later feature and is explicitly outside the MVP.
 
 The MVP catalogues EPUBs in their existing folders. The user accepted this approach, with physical file reorganization left for later rather than importing copies into an application-managed folder.
 
+The user chooses folders and manually runs Scan/Rescan to discover or refresh EPUB copies. Scans include subfolders. Automatic folder monitoring is deferred until after the MVP.
+
 This scope decision concerns file locations. Classification and browsing within book-manager remain part of the collection-management goal.
 
 ## Work identity, duplicates, and downloaded versions
@@ -106,7 +108,7 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 
 - What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
 - How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
-- How new files and changed file locations should be detected.
+- How rescans should reconcile moved or missing file locations while preserving work information.
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, and word count.
 - Whether to support word-count sorting and which downloaded version supplies the displayed count and filtering value.
