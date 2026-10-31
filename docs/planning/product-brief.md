@@ -60,6 +60,12 @@ A failed or incomplete scan does not establish that a file is missing. Recognizi
 
 Grouping applies to the catalogue; the EPUB copies remain in their existing folders. The matching method and exact criteria for identifying identical content remain open.
 
+### Metadata source across downloaded versions
+
+Use the newest downloaded version's metadata for the main catalogue and its filters, including tags, word count, and AO3 completion status. Keep older downloaded versions and their stored metadata accessible. Importing an older copy later must not replace newer metadata merely because it was scanned more recently.
+
+Determining which downloaded version is newest when evidence is missing or conflicting remains to be specified. The user's additional phrase "selected status" needs clarification against the existing rule that personal reading status is shared across copies and preserved on import; no change to that rule is recorded yet.
+
 ## Reading status and personal ratings
 
 Use the five reading statuses defined in the [domain glossary](../../CONTEXT.md): Unknown, Unread, Reading, Read, and Dropped. Unknown covers existing downloads whose reading history has not yet been recorded.
@@ -121,7 +127,7 @@ Show the word count as part of an AO3 work's information. The count describes a 
 
 Support word-count range filtering with optional minimum and maximum values. Either bound can be used alone, both can define a range such as 10,000–50,000 words, or both can be left unset. Combine the word-count constraints with the other selected filters.
 
-Word-count sorting remains to be clarified. When several downloaded versions exist, the choice of which version supplies the displayed and filtered metadata, including word count and AO3 completion status, is also still open.
+Displayed and filtered metadata, including word count and AO3 completion status, comes from the newest downloaded version. Word-count sorting remains to be clarified.
 
 ## Metadata investigation
 
@@ -147,7 +153,9 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 - How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
-- Whether to support word-count sorting and which downloaded version supplies the displayed and filtered metadata.
+- How to determine the newest downloaded version when version evidence is missing or conflicting.
+- Whether "selected status" refers to AO3 completion status or changes the previously agreed personal reading-status behavior.
+- Whether to support word-count sorting.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
 
