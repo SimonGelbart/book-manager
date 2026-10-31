@@ -17,7 +17,11 @@ They want to organize the collection, follow what they have read, and find somet
 - Reuse information already present in AO3 downloads, especially fandoms and tags, to reduce manual organization.
 - Account for a collection of thousands of EPUBs.
 
-The files currently live on both phone and computer. Which devices the first version supports, and whether their reading status and notes synchronize, remain open questions.
+The files currently live on both phone and computer. Which devices the first version supports remains an open question.
+
+## MVP scope boundary
+
+Synchronization of reading status and personal notes between phone and computer is a desired feature, but is not required for the MVP. The first release's device coverage and storage approach remain undecided.
 
 ## Current constraints
 
@@ -39,9 +43,10 @@ Verified against source snapshot `aa99cd45c8b39a60944c4e038a53f5a051098b71`:
 
 This is a source-code finding, not yet a check of the user's files or a guarantee about a deployed AO3 version. Older downloads, third-party conversions, and edited EPUBs may differ. Inspect representative downloads before fixing the importer design.
 
+The user has offered to share representative EPUBs for this validation. Sample-file inspection is still pending.
+
 ## Questions still open
 
-- Whether the first version must keep phone and computer reading status and personal notes synchronized.
 - Which device should be the primary place for managing the collection.
 - How files currently move between devices, and whether duplicate downloads occur.
 - Which fandom and tag filters best support choosing the next item to read.
