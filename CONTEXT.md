@@ -26,6 +26,9 @@ A visible indication that identical duplicate EPUB copies exist for an AO3 work.
 **Reading status**:
 The user's declared progress state for an AO3 work: Unknown, Unread, Reading, Read, or Dropped. It is shared across that work's EPUB copies.
 
+**New chapters indicator**:
+A signal that an imported downloaded version contains additional chapters beyond the version previously marked Read. It accompanies the Read status while preserving the earlier reading record.
+
 **Personal rating**:
 The user's own optional assessment of an AO3 work on a 1–5-star scale in half-star steps, distinct from its AO3 content rating.
 _Avoid_: Grade or rating alone when it could be confused with AO3 content rating.

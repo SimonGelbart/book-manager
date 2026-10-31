@@ -42,7 +42,7 @@ This scope decision concerns file locations. Classification and browsing within 
 - For the MVP, distinguish updated downloaded versions from identical duplicates, such as a ten-chapter copy and a twelve-chapter copy of the same AO3 work.
 - Keep different downloaded versions grouped under the same AO3 work.
 
-Grouping applies to the catalogue; the EPUB copies remain in their existing folders. The matching method and exact criteria for identifying identical content remain open. How newly imported chapters affect reading status is also still undecided.
+Grouping applies to the catalogue; the EPUB copies remain in their existing folders. The matching method and exact criteria for identifying identical content remain open.
 
 ## Reading status and personal ratings
 
@@ -53,6 +53,12 @@ For the MVP, provide an optional personal rating for AO3 works marked Read or Dr
 Also provide an optional Like button, following the user's Letterboxd-style reference. Like is available on any AO3 work, independently of reading status and personal rating, including works not yet finished or rated. Changing Like leaves reading status and the personal rating unchanged.
 
 These are the user's own assessments, distinct from the work's imported AO3 content rating.
+
+## Reading updates
+
+When a work marked Read receives a newly imported EPUB copy with additional chapters, keep the work marked Read and show a new chapters indicator. Preserve the record that the earlier downloaded version was read.
+
+For example, a work whose ten-chapter version was marked Read stays Read when a twelve-chapter version is imported, with an indication that new chapters are available. How the user records catching up and clears the indicator remains open.
 
 ## Current constraints
 
@@ -83,7 +89,7 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 - How new files and changed file locations should be detected.
 - How files currently move between devices.
 - Which fandom and tag filters best support choosing the next item to read.
-- How a downloaded version with additional chapters should affect reading status and previously recorded reading history.
+- How the user records catching up on a newer downloaded version and clears the new chapters indicator.
 - What personal notes should attach to: an entire item, a chapter, or a specific passage.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
