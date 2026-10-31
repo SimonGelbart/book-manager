@@ -54,10 +54,27 @@ For the Avalonia candidate, keep the shared C# core independent of Avalonia type
 
 ## Evidence needed before choosing the runtime
 
-The user has confirmed Android 16 as the current phone target. Avalonia's current support matrix lists Android 16/API 36 on ARM64 and x64 as Tier 1. The phone's actual import, retained-access, and persistence workflow still needs a device test. The Linux target is now known to be Pop!_OS; its release version remains to be established. See the [current platform matrix](https://docs.avaloniaui.net/docs/supported-platforms).
+The user has confirmed Android 16 as the current phone target. Avalonia's current support matrix lists Android 16/API 36 on ARM64 and x64 as Tier 1. The phone's actual import, retained-access, and persistence workflow still needs a device test. The Linux target is Pop!_OS 24.04. See the [current platform matrix](https://docs.avaloniaui.net/docs/supported-platforms).
 
 Check Pop!_OS directly rather than assuming it inherits Ubuntu's formal support tier. The release and desktop/session details affect the Linux windowing and folder-picker proof. The [skills-based runtime research](../research/runtime-fit-existing-skills.md) records the relevant primary-source findings.
 
 Prove a small import-and-persistence workflow on Linux and Android with the intended dependencies: select a source, read an EPUB, extract its metadata, save a reading change, and reopen the data after restart. On Android, include the document-tree grant and retained-access workflow. Verify Windows build and packaging support separately.
 
 This is a proposed technical proof, not an implemented prototype or an expansion of the Android MVP scope. A final runtime ADR should follow the actual target OS/version checks, capability proof, and the user's decision.
+
+## Proposed first capability proof
+
+Candidate: Avalonia with a shared C# core. The user has not yet selected the candidate for this proof.
+
+| Check | Evidence to collect |
+|---|---|
+| Shared implementation | Linux and Android entry projects call the same C# metadata/application implementation, with platform/UI types kept outside that core. |
+| Linux source access | On Pop!_OS 24.04, launch a minimal window, select a folder, enumerate EPUBs in its subfolders, and read the representative EPUB's metadata through the source adapter. Record the actual display session during this run. |
+| Android source access | On Android 16, select an allowed document tree, enumerate it, and pass an EPUB stream to the same shared extraction implementation. |
+| Local persistence | Save one reading-status change and one personal note in a local SQLite catalogue, close/reopen the app, and recover the saved values on both platforms. |
+| Retained Android access | Save the folder bookmark/grant and verify access after an app restart and a device restart. Distinguish a bookmark object reopening from an actual successful enumeration/read. |
+| Windows compatibility | Record a separate Windows build/package check; mark Windows runtime behavior unverified until it has been exercised on Windows. |
+
+Keep this proof focused on import, platform access, and one persisted reading record. The full collection UI, filters, ratings, synchronization, and reader remain outside the proof. Use the private representative EPUB locally and synthetic metadata fixtures in the repository.
+
+Record exact package/SDK versions and observed results. Failures in Linux rendering, file picking, Android retained access, or native SQLite assets should inform the runtime choice before an accepted stack ADR.
