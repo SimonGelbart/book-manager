@@ -9,6 +9,16 @@ Keep the evolution of book-manager understandable through small commits and conc
 - Work on `planning/project-foundation` for project discovery, specifications, and architecture notes.
 - Use Matt Pocock Skills to guide this work.
 - Commit regularly as we settle a coherent part of the plan, so the history shows how the project evolved.
+- Track features, implementation tasks, bugs, and acceptance criteria in GitHub Issues for `SimonGelbart/book-manager`.
+- Keep requirements, the glossary, architecture notes, and ADRs in the repository so their evolution remains visible in commits. Link issues to the relevant documents.
+
+## Tracking decision — 2026-10-31
+
+Use GitHub Issues for tracking work and Git for project documentation. This keeps work alongside the existing repository and lets issues connect implementation progress to documented decisions.
+
+Local Markdown task files were considered. GitHub Issues was chosen to make work status and links to branches and pull requests visible while preserving the history of requirements and design decisions in Git.
+
+Repository documents are the source of truth for requirements and design. Issues reference those documents and carry task-specific acceptance criteria and progress.
 
 ## How we will record progress
 
@@ -41,4 +51,4 @@ The branch, use of Matt Pocock Skills, and regular commits are agreed. Product r
 - Who will use book-manager, and what problem should it solve?
 - What is the first complete, useful workflow?
 - What constraints should guide its design?
-- Which issue tracker and agent instruction file should the Matt Pocock setup use?
+- Which triage labels and agent instruction file should the Matt Pocock setup use?
