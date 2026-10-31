@@ -31,7 +31,7 @@ The user's own optional assessment of an AO3 work on a 1–5-star scale in half-
 _Avoid_: Grade or rating alone when it could be confused with AO3 content rating.
 
 **Like**:
-The user's explicit indication that they like an AO3 work, distinct from its numeric personal rating.
+The user's optional indication that they like an AO3 work, available independently of reading status and personal rating. A work can be liked even when it is unread or unrated.
 
 **AO3 content rating**:
 AO3's classification of a work's content, separate from the user's personal rating.
