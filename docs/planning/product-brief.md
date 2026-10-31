@@ -135,7 +135,7 @@ Show the word count as part of an AO3 work's information. The count describes a 
 
 Support word-count range filtering with optional minimum and maximum values. Either bound can be used alone, both can define a range such as 10,000–50,000 words, or both can be left unset. Combine the word-count constraints with the other selected filters.
 
-Displayed and filtered metadata, including word count and AO3 completion status, comes from the newest downloaded version. Word-count sorting remains to be clarified.
+Displayed and filtered metadata, including word count and AO3 completion status, comes from the newest downloaded version, or the user-selected metadata source when version order is uncertain. Support word-count sorting in both directions: **shortest first** and **longest first**. Sorting uses the same version's word count as the catalogue display and range filters.
 
 ## Metadata investigation
 
@@ -162,7 +162,6 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
 - How to determine version order automatically from available evidence. Flagging uncertainty and allowing the user to choose the catalogue metadata source is agreed.
-- Whether to support word-count sorting.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
 
