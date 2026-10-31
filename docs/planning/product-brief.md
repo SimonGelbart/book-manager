@@ -127,6 +127,8 @@ See [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md), the [architectur
 
 ## Collection browsing and discovery
 
+Provide title and author search in the MVP. Search can be combined with the catalogue filters to find a specific AO3 work within a narrowed collection.
+
 Support filters for fandom, reading status, AO3 completion status, and tags alongside word-count constraints. A work must contain all required tags and none of the excluded tags. Combine all active filter rules with AND for the MVP; the user chose this simpler query model.
 
 Provide an optional Complete or Unfinished filter based on the completion status recorded in a downloaded EPUB. Keep this separate from personal reading status: a complete work can be Unread, and an unfinished work can be marked Read for the version already read.
