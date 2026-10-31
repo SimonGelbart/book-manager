@@ -44,6 +44,12 @@ This scope decision concerns file locations. Classification and browsing within 
 
 Grouping applies to the catalogue; the EPUB copies remain in their existing folders. The matching method and exact criteria for identifying identical content remain open. How newly imported chapters affect reading status is also still undecided.
 
+## Reading status and personal ratings
+
+Use the five reading statuses defined in the [domain glossary](../../CONTEXT.md): Unknown, Unread, Reading, Read, and Dropped. Unknown covers existing downloads whose reading history has not yet been recorded. The default status on import remains undecided.
+
+The user proposed a personal rating for AO3 works marked Read or Dropped. This is the user's assessment, distinct from the work's imported AO3 content rating. The grading scale, whether a rating is optional, and its first-release scope remain open for the next interview step.
+
 ## Current constraints
 
 - Personal use is the initial scope; a public service is not currently requested.
@@ -73,7 +79,7 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 - How new files and changed file locations should be detected.
 - How files currently move between devices.
 - Which fandom and tag filters best support choosing the next item to read.
-- What reading states the user needs beyond identifying already-read items.
+- The personal rating scale, whether rating is optional, and whether it belongs in the MVP.
 - How a downloaded version with additional chapters should affect reading status and previously recorded reading history.
 - What personal notes should attach to: an entire item, a chapter, or a specific passage.
 - Whether a reader integration means opening another Android app or reading inside book-manager.

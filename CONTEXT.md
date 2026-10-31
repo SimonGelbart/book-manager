@@ -24,7 +24,14 @@ An additional EPUB copy containing the same downloaded version without changes t
 A visible indication that identical duplicate EPUB copies exist for an AO3 work.
 
 **Reading status**:
-The user's record of whether an AO3 work in the collection has been read, shared across its EPUB copies.
+The user's declared progress state for an AO3 work: Unknown, Unread, Reading, Read, or Dropped. It is shared across that work's EPUB copies.
+
+**Personal rating**:
+The user's own assessment of an AO3 work, distinct from its AO3 content rating.
+_Avoid_: Grade or rating alone when it could be confused with AO3 content rating.
+
+**AO3 content rating**:
+AO3's classification of a work's content, separate from the user's personal rating.
 
 **Personal note**:
 Text the user writes to record their own thoughts about an AO3 work, shared across its EPUB copies.
