@@ -22,6 +22,7 @@ They want to organize the collection, follow what they have read, and find somet
 - The MVP starts on the computer.
 - Linux is the user's current system and the initial target.
 - Windows compatibility is preferred. It has not been stated as a mandatory condition for the MVP.
+- A similar Android collection-management app is a long-term goal and must influence the initial architecture, even though it is outside the MVP.
 
 ## MVP scope boundary
 
@@ -77,7 +78,13 @@ For example, a work whose ten-chapter version was marked Read stays Read when a 
 
 ## Possible later extension
 
-An Android reading capability or integration could be useful. Collection management is the initial priority; an integrated reader is not yet a first-version requirement.
+The future Android app should offer similar collection-management capabilities. It could also include a reader or reader integration. Collection management is the initial priority; an integrated reader is not a first-version requirement.
+
+## Architecture direction under discussion
+
+The user proposed separating the frontend from the runner with adapters, and emphasized planning for Linux, Windows, and Android together. A desktop-specific implementation should not determine the shared collection and reading logic.
+
+See the [cross-platform architecture proposal](../architecture/cross-platform-proposal.md) and [runtime research](../research/cross-platform-runtime-options.md). The proposal separates shared application/domain modules from platform integrations. Runtime, language, UI framework, and adapter details remain open decisions.
 
 ## Collection browsing and discovery
 
