@@ -100,9 +100,11 @@ Verified against source snapshot `aa99cd45c8b39a60944c4e038a53f5a051098b71`:
 - [AO3 ebook metadata conversion](https://github.com/otwcode/otwarchive/blob/aa99cd45c8b39a60944c4e038a53f5a051098b71/app/models/download_writer.rb).
 - [AO3 download preface](https://github.com/otwcode/otwarchive/blob/aa99cd45c8b39a60944c4e038a53f5a051098b71/app/views/downloads/_download_preface.html.erb).
 
-This is a source-code finding, not yet a check of the user's files or a guarantee about a deployed AO3 version. Older downloads, third-party conversions, and edited EPUBs may differ. Inspect representative downloads before fixing the importer design.
+These source-code findings do not guarantee that every existing download uses the same structure. Older downloads, third-party conversions, and edited EPUBs may differ.
 
-The user has offered to share representative EPUBs for this validation. Sample-file inspection is still pending.
+One user-provided English-language EPUB 2.0 sample has now been inspected. It provides a canonical AO3 work link, categorized tags, word count, chapter information, title, author, summary, and publication/completion dates. The package identifier is a UUID rather than the canonical AO3 work identity, and the preface is split across two spine documents.
+
+See [EPUB metadata validation](../research/epub-metadata-validation.md) for the specimen observations, primary-source locators, importer recommendations, and limits. Series extraction and comparison of duplicate or updated copies have not yet been validated against representative specimens.
 
 ## Questions still open
 
