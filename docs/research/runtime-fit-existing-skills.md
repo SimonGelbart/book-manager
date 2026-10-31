@@ -13,6 +13,14 @@ Checked on 2026-10-31. The user knows .NET/C#, Python, and React, and is willing
 
 Avalonia's current matrix lists Android 16 as Tier 1, Android 12–15 as Tier 2, and Android 11 or earlier as Tier 3/commercial support only. This is a support-policy distinction, not proof that an older device cannot execute an app. The user has now confirmed Android 16; the matrix's Tier 1 Android 16 targets are ARM64 and x64. It currently states .NET 10 for Android; exact SDK/package versions and device compatibility still need validation. Linux distribution/version also affects tier. Linux defaults to X11/XWayland, with an opt-in native Wayland backend in current releases. [A1], [A9]
 
+### Pop!_OS release and display session — pending confirmation
+
+- **System76 facts:** Pop!_OS 22.04 uses GNOME 42. The 24.04 upgrade replaces the GNOME desktop with the new COSMIC desktop, which System76 describes as Wayland-native. Alternative desktops can also be installed, so the release alone does not prove the active session. The user's Pop!_OS release/session is not yet known. [P1], [P2], [P3], [P4]
+- **Avalonia facts:** the Linux default is X11; on a Wayland desktop this normally uses XWayland. Since 12.1, the separate native Wayland backend can be enabled explicitly. Its documentation calls it early-stage, says automatic platform detection does not choose it, and documents no automatic fallback when `UseWayland()` is selected. A COSMIC session therefore needs an intentional, tested backend path. [A9]
+- **Formal support distinction:** Pop!_OS is not explicitly named in Avalonia's Linux tier table. The published policy places unlisted platforms/other distributions in Tier 3; Pop!_OS must not inherit Ubuntu's listed tier merely because it is an Ubuntu derivative. This support policy is separate from whether the application will run successfully. [A1]
+
+**Next evidence:** ask for the Pop!_OS release, then establish the actual desktop/session before validating the backend and folder picker. No runtime test or framework choice follows from this research alone.
+
 ## Android storage and bookmark evidence
 
 Avalonia's storage documentation explicitly says Android paths may be `content:` URIs. Read through `IStorageFile.OpenReadAsync()` and enumerate through `IStorageFolder.GetItemsAsync()`; a raw path or `TryGetLocalPath()` is not a portable file-access contract. Save/reopen bookmarks for later access, and handle denial or invalidation. Desktop bookmarks can simply represent paths, so their semantics differ from Android grants. [A3], [A4], [A5]
@@ -65,3 +73,8 @@ Before choosing between the two main candidates, validate the same small workflo
 [M1]: https://learn.microsoft.com/en-us/dotnet/maui/supported-platforms "Microsoft's official .NET MAUI platform list"
 [R1]: https://reactnative.dev/docs/out-of-tree-platforms "React Native partner and community platform implementations"
 [W1]: https://wails.io/guides/mobile/android/ "Wails v3 experimental Android support and file-dialog limitations"
+
+[P1]: https://support.system76.com/support/customize-gnome/ "System76 Pop!_OS 22.04 GNOME 42 documentation"
+[P2]: https://blog.system76.com/blog/post/pop-24-04-lts-upgrade "System76 22.04-to-24.04 desktop transition"
+[P3]: https://system76.com/cosmic "System76 describes COSMIC as Wayland-native"
+[P4]: https://support.system76.com/support/desktop-environment "System76 24.04 default and alternative desktops"

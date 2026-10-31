@@ -54,7 +54,9 @@ For the Avalonia candidate, keep the shared C# core independent of Avalonia type
 
 ## Evidence needed before choosing the runtime
 
-The user has confirmed Android 16 as the current phone target. Avalonia's current support matrix lists Android 16/API 36 on ARM64 and x64 as Tier 1. The phone's actual import, retained-access, and persistence workflow still needs a device test. The Linux distribution and version remain to be established. See the [current platform matrix](https://docs.avaloniaui.net/docs/supported-platforms).
+The user has confirmed Android 16 as the current phone target. Avalonia's current support matrix lists Android 16/API 36 on ARM64 and x64 as Tier 1. The phone's actual import, retained-access, and persistence workflow still needs a device test. The Linux target is now known to be Pop!_OS; its release version remains to be established. See the [current platform matrix](https://docs.avaloniaui.net/docs/supported-platforms).
+
+Check Pop!_OS directly rather than assuming it inherits Ubuntu's formal support tier. The release and desktop/session details affect the Linux windowing and folder-picker proof. The [skills-based runtime research](../research/runtime-fit-existing-skills.md) records the relevant primary-source findings.
 
 Prove a small import-and-persistence workflow on Linux and Android with the intended dependencies: select a source, read an EPUB, extract its metadata, save a reading change, and reopen the data after restart. On Android, include the document-tree grant and retained-access workflow. Verify Windows build and packaging support separately.
 

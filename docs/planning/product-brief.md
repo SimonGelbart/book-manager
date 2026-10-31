@@ -20,7 +20,7 @@ They want to organize the collection, follow what they have read, and find somet
 ## Target platforms
 
 - The MVP starts on the computer.
-- Linux is the user's current system and the initial target.
+- Pop!_OS is the user's current Linux distribution and the initial target; the release version is not yet known.
 - Windows compatibility is preferred. It has not been stated as a mandatory condition for the MVP.
 - A similar Android collection-management app is a long-term goal and must influence the initial architecture, even though it is outside the MVP.
 - The user's current phone runs Android 16.
