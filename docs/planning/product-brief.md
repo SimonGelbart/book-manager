@@ -56,6 +56,12 @@ Also provide an optional Like button, following the user's Letterboxd-style refe
 
 These are the user's own assessments, distinct from the work's imported AO3 content rating.
 
+## Personal notes
+
+For the MVP, provide one editable text note per AO3 work, shared across its EPUB copies and downloaded versions.
+
+Chapter and passage annotations are deferred to the later reader extension.
+
 ## Reading updates
 
 When a work marked Read receives a newly imported EPUB copy with additional chapters, keep the work marked Read and show a new chapters indicator. Preserve the record that the earlier downloaded version was read.
@@ -105,7 +111,6 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, and word count.
 - Whether to support word-count sorting and which downloaded version supplies the displayed count and filtering value.
 - How the user records catching up on a newer downloaded version and clears the new chapters indicator.
-- What personal notes should attach to: an entire item, a chapter, or a specific passage.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
 

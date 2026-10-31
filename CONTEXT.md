@@ -43,4 +43,4 @@ The user's optional indication that they like an AO3 work, available independent
 AO3's classification of a work's content, separate from the user's personal rating.
 
 **Personal note**:
-Text the user writes to record their own thoughts about an AO3 work, shared across its EPUB copies.
+An editable text record of the user's own thoughts about an AO3 work, shared across its EPUB copies.
