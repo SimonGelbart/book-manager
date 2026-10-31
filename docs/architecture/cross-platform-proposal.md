@@ -54,6 +54,8 @@ For the Avalonia candidate, keep the shared C# core independent of Avalonia type
 
 ## Evidence needed before choosing the runtime
 
+The user has confirmed Android 16 as the current phone target. Avalonia's current support matrix lists Android 16/API 36 on ARM64 and x64 as Tier 1. The phone's actual import, retained-access, and persistence workflow still needs a device test. The Linux distribution and version remain to be established. See the [current platform matrix](https://docs.avaloniaui.net/docs/supported-platforms).
+
 Prove a small import-and-persistence workflow on Linux and Android with the intended dependencies: select a source, read an EPUB, extract its metadata, save a reading change, and reopen the data after restart. On Android, include the document-tree grant and retained-access workflow. Verify Windows build and packaging support separately.
 
 This is a proposed technical proof, not an implemented prototype or an expansion of the Android MVP scope. A final runtime ADR should follow the actual target OS/version checks, capability proof, and the user's decision.

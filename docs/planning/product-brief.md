@@ -23,6 +23,7 @@ They want to organize the collection, follow what they have read, and find somet
 - Linux is the user's current system and the initial target.
 - Windows compatibility is preferred. It has not been stated as a mandatory condition for the MVP.
 - A similar Android collection-management app is a long-term goal and must influence the initial architecture, even though it is outside the MVP.
+- The user's current phone runs Android 16.
 
 ## MVP scope boundary
 
