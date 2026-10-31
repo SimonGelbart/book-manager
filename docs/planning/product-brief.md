@@ -57,9 +57,10 @@ A failed or incomplete scan does not establish that a file is missing. Recognizi
 - Show a visible duplicate indicator for identical duplicate EPUB copies.
 - For the MVP, distinguish updated downloaded versions from identical duplicates, such as a ten-chapter copy and a twelve-chapter copy of the same AO3 work.
 - Treat edits to existing chapter text as a different downloaded version even when the chapter count stays the same. Equal chapter counts alone do not establish that EPUB copies are identical duplicates.
+- For the same AO3 work, treat EPUB copies with identical chapter text as duplicates of the same downloaded version when they differ only in covers, fonts, or layout. Keep each copy's file location and show the duplicate indicator. These cosmetic differences do not trigger Text revised or new chapters indicators.
 - Keep different downloaded versions grouped under the same AO3 work.
 
-Grouping applies to the catalogue; the EPUB copies remain in their existing folders. The matching method and exact criteria for identifying identical content remain open.
+Grouping applies to the catalogue; the EPUB copies remain in their existing folders. Chapter-text equality and cosmetic differences now have agreed product semantics; the matching and content-comparison methods still need to be specified and validated.
 
 ### Metadata source across downloaded versions
 

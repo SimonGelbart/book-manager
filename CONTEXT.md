@@ -24,7 +24,7 @@ The length of an AO3 work in words as reported by a particular downloaded versio
 Whether an AO3 work is complete or unfinished according to the metadata in a downloaded version. It describes the work's publication state, independently of the user's reading status.
 
 **Identical duplicate**:
-An additional EPUB copy containing the same downloaded version without changes to the work's content.
+An additional EPUB copy containing the same downloaded version without changes to its chapter text. Copies of the same AO3 work can be identical duplicates despite differences in covers, fonts, or layout.
 
 **Duplicate indicator**:
 A visible indication that identical duplicate EPUB copies exist for an AO3 work.
