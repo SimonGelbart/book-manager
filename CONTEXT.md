@@ -12,10 +12,16 @@ A piece of writing published as one work on Archive of Our Own, distinct from an
 _Avoid_: Book, story in project documentation when this specific concept is intended.
 
 **EPUB copy**:
-One downloaded EPUB file containing an AO3 work. Several EPUB copies can correspond to the same AO3 work.
+One downloaded EPUB file containing an AO3 work. Several EPUB copies can represent the same or different downloaded versions of that work.
+
+**Downloaded version**:
+A snapshot of an AO3 work's content, potentially represented by several EPUB copies. For example, a download with ten chapters and a later download with twelve chapters are different downloaded versions.
+
+**Identical duplicate**:
+An additional EPUB copy containing the same downloaded version without changes to the work's content.
 
 **Duplicate indicator**:
-A visible indication that more than one EPUB copy is associated with the same AO3 work.
+A visible indication that identical duplicate EPUB copies exist for an AO3 work.
 
 **Reading status**:
 The user's record of whether an AO3 work in the collection has been read, shared across its EPUB copies.

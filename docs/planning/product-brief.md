@@ -33,14 +33,16 @@ The MVP catalogues EPUBs in their existing folders. The user accepted this appro
 
 This scope decision concerns file locations. Classification and browsing within book-manager remain part of the collection-management goal.
 
-## Work identity and duplicate visibility
+## Work identity, duplicates, and downloaded versions
 
 - Represent each AO3 work once in the collection, even when several EPUB copies exist.
 - Share reading status and personal notes across those copies.
 - Keep track of the location of each EPUB copy.
-- Show a visible duplicate indicator when more than one EPUB copy is associated with an AO3 work.
+- Show a visible duplicate indicator for identical duplicate EPUB copies.
+- For the MVP, distinguish updated downloaded versions from identical duplicates, such as a ten-chapter copy and a twelve-chapter copy of the same AO3 work.
+- Keep different downloaded versions grouped under the same AO3 work.
 
-Grouping applies to the catalogue; the EPUB copies remain in their existing folders. The matching method and the treatment of updated downloads with different content remain open.
+Grouping applies to the catalogue; the EPUB copies remain in their existing folders. The matching method and exact criteria for identifying identical content remain open. How newly imported chapters affect reading status is also still undecided.
 
 ## Current constraints
 
@@ -66,12 +68,13 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 
 ## Questions still open
 
-- How to distinguish identical duplicate copies from different downloaded versions of the same AO3 work.
+- What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
 - How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
 - How new files and changed file locations should be detected.
 - How files currently move between devices.
 - Which fandom and tag filters best support choosing the next item to read.
 - What reading states the user needs beyond identifying already-read items.
+- How a downloaded version with additional chapters should affect reading status and previously recorded reading history.
 - What personal notes should attach to: an entire item, a chapter, or a specific passage.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
