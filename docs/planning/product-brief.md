@@ -39,6 +39,14 @@ The user chooses folders and manually runs Scan/Rescan to discover or refresh EP
 
 This scope decision concerns file locations. Classification and browsing within book-manager remain part of the collection-management goal.
 
+### Missing files and retained information
+
+When a successful rescan establishes that a previously catalogued EPUB copy is missing, retain its last-known location and stored information. If all known EPUB copies of an AO3 work are missing, keep the work in the catalogue and show **Files missing**.
+
+Preserve all catalogue information for the work: imported metadata, known downloaded versions and copy records, reading history and status, personal note, personal rating, and Like. Missing files must not automatically delete this information. The user explicitly chose to retain it even when the EPUB copies are no longer available.
+
+A failed or incomplete scan does not establish that a file is missing. Recognizing and reconnecting moved or returned copies remains to be specified.
+
 ## Work identity, duplicates, and downloaded versions
 
 - Represent each AO3 work once in the collection, even when several EPUB copies exist.
@@ -130,7 +138,7 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 
 - What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
 - How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
-- How rescans should reconcile moved or missing file locations while preserving work information.
+- How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
 - Whether to support word-count sorting and which downloaded version supplies the displayed and filtered metadata.
