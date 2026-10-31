@@ -1,0 +1,44 @@
+# Planning working agreement
+
+## Purpose
+
+Keep the evolution of book-manager understandable through small commits and concise explanations of the decisions behind each change.
+
+## Agreed working practices
+
+- Work on `planning/project-foundation` for project discovery, specifications, and architecture notes.
+- Use Matt Pocock Skills to guide this work.
+- Commit regularly as we settle a coherent part of the plan, so the history shows how the project evolved.
+
+## How we will record progress
+
+Each planning change should state what changed and why. Where relevant, include the constraints, alternatives considered, consequences, and questions still open.
+
+Keep proposals distinguishable from agreed decisions. When new information changes a decision, explain the change in a later commit so the earlier context remains understandable.
+
+Use one focused commit for each meaningful update, such as clarifying the first release, defining a domain term, or resolving an architectural trade-off. Commit messages should describe the change; add a body when its motivation needs explanation. Push these commits to the planning branch as we go.
+
+## Documentation approach
+
+Following the Matt Pocock workflow:
+
+- Clarify requirements and design choices through `grill-with-docs`.
+- Create `CONTEXT.md` when the first domain term is settled. Keep it a glossary.
+- Create ADRs under `docs/adr/` when a decision is costly to reverse, needs context to understand, and reflects a real trade-off.
+- Turn the agreed plan into a specification with `to-spec`.
+- Break the specification into implementation tasks with `to-tickets` when appropriate.
+
+Configure the repository's skill conventions before beginning that engineering workflow.
+
+## Starting point — 2026-10-31
+
+The repository began empty. A minimal README established `main`; the planning branch was then created from that baseline.
+
+The branch, use of Matt Pocock Skills, and regular commits are agreed. Product requirements and technical choices remain open.
+
+## Questions to resolve next
+
+- Who will use book-manager, and what problem should it solve?
+- What is the first complete, useful workflow?
+- What constraints should guide its design?
+- Which issue tracker and agent instruction file should the Matt Pocock setup use?
