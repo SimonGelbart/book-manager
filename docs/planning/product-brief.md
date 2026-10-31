@@ -76,6 +76,10 @@ For example, a work whose ten-chapter version was marked Read stays Read when a 
 - Personal use is the initial scope; a public service is not currently requested.
 - The user has no server available for hosting at present. This is a current constraint, not yet an architectural decision about future hosting or synchronization.
 
+## Development experience
+
+The user is familiar with .NET/C#, Python, and React. They are willing to try Kotlin, Rust, or Go when there is a concrete benefit, and can learn another language if needed. No requirement to retain a specific UI framework has been stated.
+
 ## Possible later extension
 
 The future Android app should offer similar collection-management capabilities. It could also include a reader or reader integration. Collection management is the initial priority; an integrated reader is not a first-version requirement.
@@ -84,7 +88,7 @@ The future Android app should offer similar collection-management capabilities. 
 
 The user proposed separating the frontend from the runner with adapters, and emphasized planning for Linux, Windows, and Android together. A desktop-specific implementation should not determine the shared collection and reading logic.
 
-See the [cross-platform architecture proposal](../architecture/cross-platform-proposal.md) and [runtime research](../research/cross-platform-runtime-options.md). The proposal separates shared application/domain modules from platform integrations. Runtime, language, UI framework, and adapter details remain open decisions.
+See the [cross-platform architecture proposal](../architecture/cross-platform-proposal.md), [runtime research](../research/cross-platform-runtime-options.md), and [runtime fit with existing skills](../research/runtime-fit-existing-skills.md). The proposal separates shared application/domain modules from platform integrations. Runtime, language, UI framework, and adapter details remain open decisions.
 
 ## Collection browsing and discovery
 

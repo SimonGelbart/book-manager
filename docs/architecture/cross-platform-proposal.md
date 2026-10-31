@@ -43,14 +43,17 @@ The application can run locally on each device. The UI/core separation can use l
 
 ## Runtime shortlist
 
-- **Flutter:** a candidate when a shared Dart UI and application implementation for Linux, Windows, and Android is the priority. With no existing web-stack preference, this is the provisional starting recommendation for the three installed-app targets.
-- **Tauri 2:** a candidate when retaining a web UI and TypeScript investment is important. Shared application logic can use a portable implementation supported by the chosen runtime, with native integrations behind adapters. Its official dialog plugin currently lacks Android folder picking, so that integration needs explicit validation.
+- **Avalonia with .NET/C#:** the recommended first candidate to validate now that the user's .NET/C# experience is known. It can keep the shared application/domain implementation in a familiar language. Its storage abstraction already covers Android folder selection, streams, and bookmarks; actual device support and retained access still need verification. Avalonia UI, styling, and adaptive layouts are new framework work unless the user has prior experience with them.
+- **React with Tauri 2:** the main alternative when retaining React is the stronger preference. Shared Rust application logic and the React frontend can serve all three targets, with platform integrations behind adapters. Its official dialog plugin currently lacks Android folder picking, so a suitable integration must be proved. This adds Rust learning and potentially a Kotlin adapter.
+- **Flutter:** remains a technically viable alternative, but is no longer the default recommendation given existing C# and React experience. It would need a concrete advantage to justify learning Dart and a different UI stack.
 - **Browser-only application:** possible, with browser file-access and persistence constraints to validate against the existing-folder workflow. Sharing web UI code does not require choosing browser-only deployment.
 
-These are conditional recommendations, supported by the linked research rather than an accepted stack decision. The user's language/framework experience could change the preferred choice.
+These are conditional recommendations, not an accepted stack decision. The [skills-based runtime research](../research/runtime-fit-existing-skills.md) records the verified capabilities and trade-offs, including Avalonia support tiers and the distinction between Avalonia and Microsoft's official .NET MAUI targets.
+
+For the Avalonia candidate, keep the shared C# core independent of Avalonia types. A storage adapter translates picked storage items and bookmarks into the source interface and supplies readable EPUB data. The UI and platform entry projects reference the shared implementation; each runner wires the required integrations.
 
 ## Evidence needed before choosing the runtime
 
 Prove a small import-and-persistence workflow on Linux and Android with the intended dependencies: select a source, read an EPUB, extract its metadata, save a reading change, and reopen the data after restart. On Android, include the document-tree grant and retained-access workflow. Verify Windows build and packaging support separately.
 
-This is a proposed technical proof, not an implemented prototype or an expansion of the Android MVP scope. A final runtime ADR should follow the language preference and capability checks.
+This is a proposed technical proof, not an implemented prototype or an expansion of the Android MVP scope. A final runtime ADR should follow the actual target OS/version checks, capability proof, and the user's decision.
