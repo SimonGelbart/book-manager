@@ -27,6 +27,8 @@ They want to organize the collection, follow what they have read, and find somet
 
 Synchronization of reading status and personal notes between phone and computer is a desired feature, but is not required for the MVP. Application form and packaging remain undecided.
 
+OR filtering is a possible later feature and is explicitly outside the MVP.
+
 ## File handling
 
 The MVP catalogues EPUBs in their existing folders. The user accepted this approach, with physical file reorganization left for later rather than importing copies into an application-managed folder.
@@ -71,11 +73,13 @@ An Android reading capability or integration could be useful. Collection managem
 
 ## Collection browsing and discovery
 
+Support fandom, reading-status, and tag filters alongside word-count constraints. A work must contain all required tags and none of the excluded tags. Combine all active filter rules with AND for the MVP; the user chose this simpler query model.
+
 Show the word count as part of an AO3 work's information. The count describes a downloaded version, so different versions of the same work may have different counts.
 
 Support word-count range filtering with optional minimum and maximum values. Either bound can be used alone, both can define a range such as 10,000–50,000 words, or both can be left unset. Combine the word-count constraints with the other selected filters.
 
-Word-count sorting and the broader search and filter combinations remain to be clarified. When several downloaded versions exist, the choice of which version supplies the displayed count and filtering value is also still open.
+Word-count sorting remains to be clarified. When several downloaded versions exist, the choice of which version supplies the displayed count and filtering value is also still open.
 
 ## Metadata investigation
 
@@ -98,7 +102,7 @@ The user has offered to share representative EPUBs for this validation. Sample-f
 - How to match EPUB copies to an AO3 work when identifying information is missing or inconsistent.
 - How new files and changed file locations should be detected.
 - How files currently move between devices.
-- Which fandom and tag filters best support choosing the next item to read.
+- Whether any additional metadata filters are essential beyond fandom, tags, reading status, and word count.
 - Whether to support word-count sorting and which downloaded version supplies the displayed count and filtering value.
 - How the user records catching up on a newer downloaded version and clears the new chapters indicator.
 - What personal notes should attach to: an entire item, a chapter, or a specific passage.
