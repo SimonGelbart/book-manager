@@ -51,6 +51,8 @@ A failed or incomplete scan does not establish that a file is missing. Recognizi
 
 ## Work identity, duplicates, and downloaded versions
 
+The user expects only a few duplicate files in the existing collection. Duplicate detection and grouping remain part of the MVP.
+
 - Represent each AO3 work once in the collection, even when several EPUB copies exist.
 - Share reading status and personal notes across those copies.
 - Keep track of the location of each EPUB copy.
@@ -160,7 +162,6 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 - How files currently move between devices.
 - Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
 - How to determine version order automatically from available evidence. Flagging uncertainty and allowing the user to choose the catalogue metadata source is agreed.
-- Whether the user's comment that there should not be many duplicates describes the expected collection contents or a catalogue-presentation preference.
 - Whether to support word-count sorting.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
