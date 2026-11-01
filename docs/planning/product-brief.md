@@ -1,6 +1,6 @@
 # Tome Raider — product brief
 
-Status: MVP product scope confirmed on 2026-11-01. The user reported no essential missing capability after the scope review. This brief preserves the discovery record; the [MVP specification draft](../specs/mvp-epub-catalogue.md) consolidates the requirements, acceptance examples, and proposed testing boundary.
+Status: MVP product scope and testing interface confirmed on 2026-11-01. The user reported no essential missing capability after the scope review and approved the primary Application test seam. This brief preserves the discovery record; the [MVP specification](../specs/mvp-epub-catalogue.md) consolidates the requirements, acceptance examples, and accepted testing approach.
 
 ## Application name — confirmed 2026-11-01
 

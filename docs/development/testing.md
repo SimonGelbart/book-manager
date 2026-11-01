@@ -8,7 +8,7 @@ Keep automated test projects, helpers, and committed synthetic EPUB fixtures und
 
 Use TUnit for behavior, integration, and architecture test projects. Select compatible stable package versions and runner configuration during scaffolding, using the [toolchain research](../research/dotnet-testing-toolchain.md) as candidate evidence. No package restore, executable TUnit test, or architecture rule run has yet been demonstrated in this workspace.
 
-Tests should assert public outcomes rather than private helpers or internal call sequences. The [specification](../specs/mvp-epub-catalogue.md#testing-decisions) proposes the shared Application interface as the primary behavior-test seam; that proposal still needs the owner's expectation check. Architecture tests are an additional accepted requirement, independent of that pending check.
+Tests should assert public outcomes rather than private helpers or internal call sequences. The owner confirmed the shared Application interface as the primary behavior-test seam in the [specification](../specs/mvp-epub-catalogue.md#testing-decisions). Architecture tests are an additional accepted requirement; target-platform checks separately verify native integrations.
 
 ## Integration tests
 

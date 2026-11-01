@@ -2,7 +2,7 @@
 
 *Raid. Hoard. Read.*
 
-Date: 2026-11-01. Product scope: confirmed by the owner after the discovery interview. Specification status: **draft for review of the proposed testing boundary**. This document specifies intended behavior; no application implementation or successful platform proof exists yet.
+Date: 2026-11-01. Product scope and primary testing interface: confirmed by the owner. Specification status: **ready for implementation planning**, subject to the explicit technical gates below. This document specifies intended behavior; no application implementation or successful platform proof exists yet.
 
 ## Problem Statement
 
@@ -144,13 +144,13 @@ The owner selected **TUnit**, **Testcontainers when necessary for integration te
 
 Architecture checks must enforce Domain independence, inward Application dependencies, outer implementation dependencies, and explicit host-composition allowances. Cover production project references as well as code/type dependencies where feasible; fail empty selections and provide useful violation diagnostics. The exact architecture-rule library remains subject to compatibility verification. Structural checks complement review of ordinary Application methods without CQRS.
 
-### Proposed primary boundary — owner confirmation pending
+### Accepted primary behavior-test interface
 
-Test externally observable behavior through the **shared catalogue application interface**, the highest seam common to the desktop and future phone hosts. There is no existing implementation or test suite to preserve; this proposes the new public interface before tests are written.
+The owner confirmed testing externally observable behavior through the **shared catalogue application interface**, the highest seam common to the desktop and future phone hosts. There is no existing implementation or test suite to preserve; implement this public interface before tests that exercise it.
 
 Supply synthetic EPUB streams and source references through the real adapter contract, exercise application requests, and assert returned collection/query state and persisted results. Use a temporary real local database for persistence behavior and reopen the Application module and catalogue to verify durability. Keep UI widget types, SQL statements, parser helpers, private methods, and internal call sequences out of behavior assertions.
 
-This proposal is compatible with the accepted Clean Architecture: the test composition supplies real Infrastructure adapters to Application-owned interfaces. Application itself does not reference Infrastructure, and the tests do not depend on CQRS handlers. The owner has not yet confirmed this proposed primary behavior-testing interface; the TUnit choice and architecture-test requirement are already accepted.
+This accepted approach follows the chosen Clean Architecture: the test composition supplies real Infrastructure adapters to Application-owned interfaces. Application itself does not reference Infrastructure, and the tests do not depend on CQRS handlers. Use the selected TUnit framework and include the separately required architecture tests.
 
 Use controlled source-access and reader-launch outcomes at the platform boundary for application tests. These can verify which selected copy was requested and how a failure is surfaced; they cannot establish actual operating-system launch or permission behavior.
 
@@ -181,9 +181,9 @@ Use controlled source-access and reader-launch outcomes at the platform boundary
 
 ### Scope and review status
 
-The owner confirmed on 2026-11-01 that nothing essential was missing from the discovered MVP. Product discovery is complete for this first specification. The proposed primary testing boundary needs the `to-spec` workflow's expectation check before this draft is marked ready for implementation planning; the small implementation defaults above are explicitly visible for review.
+The owner confirmed on 2026-11-01 that nothing essential was missing from the discovered MVP, then confirmed the primary behavior-test interface after supplying architecture, testing-tool, and naming preferences. The specification is ready for implementation planning. The small implementation defaults above remain explicitly proposed engineering details for review with their affected tasks.
 
-After that check, break the specification into dependent implementation tasks, keeping capability and identity validation ahead of features that depend on their results. Keep the source documents and focused Git history as the record of how decisions evolved.
+Break the specification into dependent implementation tasks, keeping capability and identity validation ahead of features that depend on their results. Keep the source documents and focused Git history as the record of how decisions evolved.
 
 ### Reference documents
 

@@ -61,8 +61,12 @@ The repository began empty. A minimal README established `main`; the planning br
 
 The branch, use of Matt Pocock Skills, and regular commits are agreed. Product requirements and technical choices remain open.
 
-## Questions to resolve next
+## Next work — 2026-11-01
 
-- Who will use book-manager, and what problem should it solve?
-- What is the first complete, useful workflow?
-- What constraints should guide its design?
+The owner confirmed the MVP scope, architecture and tooling preferences, application name, and primary Application test seam. The specification is ready for implementation planning.
+
+- Draft and review dependent implementation slices with `to-tickets` before publishing the new task issues.
+- Complete the existing runtime capability proof and validate identity/comparison behavior before dependent implementation.
+- Build the approved slices with TUnit behavior/integration tests and required architecture checks, retaining focused commits.
+
+See the [agent-skill setup guide](../development/agent-skills.md) for installation choices; the repository's tracker, glossary, ADR, and one-question interview conventions are already configured.
