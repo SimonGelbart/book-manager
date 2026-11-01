@@ -11,11 +11,11 @@ Build the Linux MVP while keeping Windows compatibility and a later Android app 
 | Module | Responsibility |
 |---|---|
 | Presentation | Render the collection and work details, collect user actions, and adapt layouts to desktop and phone. |
-| Application | Coordinate scanning, import, queries, reading changes, personal ratings, Likes, and notes through a small interface. |
+| Application | Coordinate scanning, import, queries, opening a selected EPUB copy, reading changes, personal ratings, Likes, and notes through a small interface. |
 | Domain | Define works, downloaded versions, EPUB copies, duplicate rules, filter semantics, and personal reading information. External source identifiers are optional. |
 | EPUB metadata | Hide base EPUB parsing and optional source-specific enrichment behind an extraction interface. Accept EPUB data supplied by the file-source adapter and return available metadata with diagnostics; AO3 preface extraction adds richer source metadata when recognized. |
 | Catalogue | Own persistence and query behavior behind its interface. An embedded SQLite implementation is a candidate, subject to runtime and dependency verification. |
-| Platform adapters | Supply file/folder selection, enumeration, readable EPUB data, access grants, and other platform integrations actually needed by the app. |
+| Platform adapters | Supply file/folder selection, enumeration, readable EPUB data, access grants, and the desktop action to open a selected EPUB in the operating system's associated reader. |
 | Runner | Start the application and wire the chosen adapters to the shared modules. |
 
 The runner should contain integration and startup logic. Collection and reading rules remain shared. An interface alone cannot make a desktop-only runtime or dependency work on Android; the shared implementation must also be supported there.
@@ -40,6 +40,8 @@ Desktop file access can use filesystem paths. Android document access can use pe
 Share an adapter when its dependency genuinely supports all targets. Introduce separate implementations where behavior differs; avoid creating identical wrappers merely to mirror operating-system names.
 
 The application can run locally on each device. The UI/core separation can use local calls or a runtime bridge; it does not require a hosted backend. Device synchronization remains a later feature, separate from sharing application source code.
+
+External reader launch is a desktop MVP integration. Keep the operating-system launch mechanism outside the shared catalogue and reading logic, and report launch failures to the UI. Opening a copy does not update its reading record; the user records reading explicitly. Android reader integration remains a later decision.
 
 ## General EPUB catalogue and source enrichment
 

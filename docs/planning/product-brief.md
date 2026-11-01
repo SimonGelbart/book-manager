@@ -51,6 +51,12 @@ The user chooses folders and manually runs Scan/Rescan to discover or refresh EP
 
 This scope decision concerns file locations. Classification and browsing within book-manager remain part of the collection-management goal.
 
+### Opening an EPUB
+
+Include an **Open in default reader** action in the desktop MVP for the selected EPUB copy. Hand the selected file to the operating system's associated external reader. Opening a file does not change personal reading status or mark a downloaded version read.
+
+If the selected copy is unavailable or the external reader cannot be launched, show the problem while preserving the catalogue and reading information. An integrated reader remains a later extension.
+
 ### Missing files and retained information
 
 When a successful rescan establishes that a previously catalogued EPUB copy is missing, retain its last-known location and stored information. If all known EPUB copies of a work are missing, keep the work in the catalogue and show **Files missing**.
