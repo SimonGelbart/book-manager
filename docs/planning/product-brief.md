@@ -1,6 +1,6 @@
 # Product brief
 
-Status: discovery in progress. This document records confirmed needs and open questions; it is not an implementation specification.
+Status: MVP product scope confirmed on 2026-11-01. The user reported no essential missing capability after the scope review. This brief preserves the discovery record; the [MVP specification draft](../specs/mvp-epub-catalogue.md) consolidates the requirements, acceptance examples, and proposed testing boundary.
 
 ## User and current problem
 
@@ -174,16 +174,20 @@ One user-provided English-language EPUB 2.0 sample has now been inspected. It pr
 
 See [EPUB metadata validation](../research/epub-metadata-validation.md) for the specimen observations, primary-source locators, importer recommendations, and limits. Series extraction and comparison of duplicate or updated copies have not yet been validated against representative specimens.
 
-## Questions still open
+## Implementation investigations still open
 
 - What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
 - How to match EPUB copies to a work when source identifiers are absent or inconsistent. Optional source identity and review of ambiguous associations are agreed.
 - How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
-- How files currently move between devices.
-- Whether any additional filters are essential beyond fandom, tags, reading status, AO3 completion status, word count, and Updates to read.
 - How to determine version order automatically from available evidence. Flagging uncertainty and allowing the user to choose the catalogue metadata source is agreed.
-- Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
+
+## Questions deferred to later releases
+
+- How files move between devices and how synchronization should work.
+- Whether the later Android reader integration means opening another app or reading inside book-manager.
+
+The current filter set and other product capabilities are sufficient for the agreed MVP. Remaining implementation investigations are validation tasks, rather than requests to expand the first release.
 
 ## Interview record — 2026-10-31
 

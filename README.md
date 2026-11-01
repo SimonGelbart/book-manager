@@ -8,4 +8,6 @@ See the [planning working agreement](docs/planning/working-agreement.md) for our
 
 The [product brief](docs/planning/product-brief.md) records the needs discovered so far. The [domain glossary](CONTEXT.md) defines the terms used in the project.
 
+The MVP product scope is settled. The [specification draft](docs/specs/mvp-epub-catalogue.md) collects user stories, acceptance examples, implementation gates, and the proposed testing boundary for review.
+
 The selected direction is Avalonia with a shared .NET/C# core; [ADR 0001](docs/adr/0001-avalonia-and-shared-dotnet-core.md) records why. Target-platform validation is still pending; see the [capability proof record](docs/research/avalonia-proof-execution.md).
