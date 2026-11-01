@@ -12,6 +12,8 @@ The [product brief](docs/planning/product-brief.md) records the needs discovered
 
 The MVP product scope and testing approach are settled. The [specification](docs/specs/mvp-epub-catalogue.md) collects user stories, acceptance examples, implementation gates, and the accepted Application test seam.
 
+The [proposed implementation tickets](docs/planning/implementation-plan.md) show the vertical slices and blocking dependencies for review before new task issues are published.
+
 The owner chose **Clean Architecture without CQRS**. Production projects belong under [src](src/README.md), and automated tests and fixtures under [tests](tests/README.md); [ADR 0003](docs/adr/0003-clean-architecture-without-cqrs.md) records the dependency and layout rules.
 
 The [testing conventions](docs/development/testing.md) specify TUnit, conditional Testcontainers use, and required architecture checks.
