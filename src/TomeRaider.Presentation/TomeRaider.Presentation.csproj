@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets/**" />
     <ProjectReference Include="../TomeRaider.Application/TomeRaider.Application.csproj" />
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
