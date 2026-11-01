@@ -31,7 +31,7 @@ jobs:
         run: dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --no-restore
 
       - name: Run application tests
-        run: dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --no-restore --no-build
+        run: dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --no-restore
 
       - name: Run architecture tests
-        run: dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --no-restore --no-build
+        run: dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --no-restore

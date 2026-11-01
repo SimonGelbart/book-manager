@@ -42,6 +42,18 @@ public sealed class CatalogueApplication
         return catalogue.SaveReadingRecordAsync(workId, status, personalNote, cancellationToken);
     }
 
+    public Task SaveAsReadAsync(
+        Guid workId,
+        string? personalNote,
+        CancellationToken cancellationToken = default)
+    {
+        return catalogue.SaveReadingRecordAsync(
+            workId,
+            TomeRaider.Domain.ReadingStatus.Read,
+            personalNote,
+            cancellationToken);
+    }
+
     public Task<ReadingRecord?> GetReadingRecordAsync(
         Guid workId,
         CancellationToken cancellationToken = default)

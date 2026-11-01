@@ -1,5 +1,8 @@
 using TomeRaider.Application;
 using TomeRaider.Domain;
+using TomeRaider.Infrastructure;
+using TomeRaider.Platform.Storage;
+using TomeRaider.Presentation;
 using TUnit.Assertions;
 using TUnit.Core;
 
@@ -56,6 +59,23 @@ public sealed class ArchitectureTests
         await Assert.That(domainReferences).DoesNotContain("TomeRaider.Infrastructure");
         await Assert.That(applicationReferences).DoesNotContain("TomeRaider.Infrastructure");
         await Assert.That(applicationReferences).DoesNotContain("TomeRaider.Presentation");
+    }
+
+    [Test]
+    public async Task EmittedProductionReferencesStayWithinTheApprovedDirection()
+    {
+        var assemblies = new[]
+        {
+            ("TomeRaider.Domain", typeof(Work).Assembly),
+            ("TomeRaider.Application", typeof(CatalogueApplication).Assembly),
+            ("TomeRaider.Infrastructure", typeof(EpubMetadataExtractor).Assembly),
+            ("TomeRaider.Platform.Storage", typeof(AvaloniaStorageFileSource).Assembly),
+            ("TomeRaider.Presentation", typeof(MainViewModel).Assembly),
+            ("TomeRaider.Desktop", System.Reflection.Assembly.Load("TomeRaider.Desktop"))
+        };
+        var violations = ArchitectureRules.FindEmittedReferenceViolations(assemblies);
+
+        await Assert.That(violations).Count().IsEqualTo(0);
     }
 
     private static string FindRepositoryRoot()

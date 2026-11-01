@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace TomeRaider.Architecture.Tests;
 
 internal sealed record ProjectDependency(string From, string To);
@@ -44,6 +46,25 @@ internal static class ArchitectureRules
                 !AllowedReferences.TryGetValue(dependency.From, out var allowed)
                 || !allowed.Contains(dependency.To))
             .Select(dependency => $"{dependency.From} -> {dependency.To}")
+            .ToArray();
+    }
+
+    public static IReadOnlyList<string> FindEmittedReferenceViolations(
+        IReadOnlyCollection<(string Name, Assembly Assembly)> assemblies)
+    {
+        if (assemblies.Count == 0)
+        {
+            throw new InvalidOperationException("Emitted architecture checks require a non-empty assembly set.");
+        }
+
+        var productionNames = AllowedReferences.Keys.ToHashSet(StringComparer.Ordinal);
+        return assemblies
+            .SelectMany(assembly => assembly.Assembly
+                .GetReferencedAssemblies()
+                .Select(reference => (Assembly: assembly.Name, Reference: reference.Name))
+                .Where(reference => reference.Reference is not null && productionNames.Contains(reference.Reference))
+                .Where(reference => !AllowedReferences[assembly.Name].Contains(reference.Reference!))
+                .Select(reference => $"{reference.Assembly} -> {reference.Reference}"))
             .ToArray();
     }
 

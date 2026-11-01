@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using TomeRaider.Application;
-using TomeRaider.Domain;
 
 namespace TomeRaider.Presentation;
 
@@ -50,7 +49,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         try
         {
-            await session.Application.SaveReadingRecordAsync(work.Id, ReadingStatus.Read, PersonalNote);
+            await session.Application.SaveAsReadAsync(work.Id, PersonalNote);
             StatusMessage = $"Saved Read and note for '{work.Title}'.";
         }
         catch (Exception exception)
