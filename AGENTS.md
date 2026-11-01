@@ -1,8 +1,8 @@
 ## Agent skills
 
-### Planning workflow
-Follow docs/planning/working-agreement.md.
-Work on planning/project-foundation and commit focused updates.
+### Branches and commits
+Before starting a branch or preparing a pull request, read
+docs/planning/working-agreement.md for the agreed branch and commit workflow.
 
 ### Requirements interview
 During grilling, ask exactly one question per message and wait for the

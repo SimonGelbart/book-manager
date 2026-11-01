@@ -6,7 +6,8 @@ Keep the evolution of book-manager understandable through small commits and conc
 
 ## Agreed working practices
 
-- Work on `planning/project-foundation` for project discovery, specifications, and architecture notes.
+- Keep the completed discovery, specification, and architecture work on `planning/project-foundation` for review through a pull request into `main`.
+- Use a separate branch for each implementation slice. Start `feat/runtime-capability-proof` from the planning branch while its pull request is open; after the planning pull request merges, bring that branch onto the updated `main` before opening its implementation pull request.
 - Use Matt Pocock Skills to guide this work.
 - The application is **Tome Raider**, with the tagline **Raid. Hoard. Read.** Use **TomeRaider** as the identifier prefix when scaffolding .NET projects and namespaces.
 - Follow [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md): Clean Architecture without CQRS, production code under repository-root `src/`, and automated tests and fixtures under `tests/`.
@@ -41,7 +42,7 @@ Each planning change should state what changed and why. Where relevant, include 
 
 Keep proposals distinguishable from agreed decisions. When new information changes a decision, explain the change in a later commit so the earlier context remains understandable.
 
-Use one focused commit for each meaningful update, such as clarifying the first release, defining a domain term, or resolving an architectural trade-off. Commit messages should describe the change; add a body when its motivation needs explanation. Push these commits to the planning branch as we go.
+Use one focused commit for each meaningful update, such as clarifying the first release, defining a domain term, resolving an architectural trade-off, or completing an implementation behavior. Commit messages should describe the change; add a body when its motivation needs explanation. Push these commits to the active branch as we go.
 
 ## Documentation approach
 
