@@ -4,7 +4,7 @@ Owner choices confirmed on 2026-11-01: **TUnit** for automated .NET tests, **Tes
 
 ## Test organization and execution
 
-Keep automated test projects, helpers, and committed synthetic EPUB fixtures under repository-root `tests/`. Production implementation stays under `src/`. Test project names and the final assembly layout will follow the application's name and actual module responsibilities.
+Keep automated test projects, helpers, and committed synthetic EPUB fixtures under repository-root `tests/`. Production implementation stays under `src/`. Use **TomeRaider** as the test-project identifier prefix; the final assembly layout follows actual module responsibilities.
 
 Use TUnit for behavior, integration, and architecture test projects. Select compatible stable package versions and runner configuration during scaffolding, using the [toolchain research](../research/dotnet-testing-toolchain.md) as candidate evidence. No package restore, executable TUnit test, or architecture rule run has yet been demonstrated in this workspace.
 

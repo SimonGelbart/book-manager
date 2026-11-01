@@ -8,6 +8,7 @@ Keep the evolution of book-manager understandable through small commits and conc
 
 - Work on `planning/project-foundation` for project discovery, specifications, and architecture notes.
 - Use Matt Pocock Skills to guide this work.
+- The application is **Tome Raider**, with the tagline **Raid. Hoard. Read.** Use **TomeRaider** as the identifier prefix when scaffolding .NET projects and namespaces.
 - Follow [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md): Clean Architecture without CQRS, production code under repository-root `src/`, and automated tests and fixtures under `tests/`.
 - Follow the [testing conventions](../development/testing.md): TUnit, Testcontainers where needed by an integration, and required architecture checks for the agreed dependency rules.
 - Commit regularly as we settle a coherent part of the plan, so the history shows how the project evolved.

@@ -1,4 +1,6 @@
-# MVP specification: personal EPUB catalogue
+# Tome Raider — MVP specification: personal EPUB catalogue
+
+*Raid. Hoard. Read.*
 
 Date: 2026-11-01. Product scope: confirmed by the owner after the discovery interview. Specification status: **draft for review of the proposed testing boundary**. This document specifies intended behavior; no application implementation or successful platform proof exists yet.
 
@@ -10,7 +12,7 @@ They need to catalogue the existing collection, find a suitable next read, and r
 
 ## Solution
 
-Build an Avalonia desktop application with a shared .NET/C# core. The owner selects existing folders and manually scans or rescans them, including subfolders. The catalogue presents one entry per work, with downloaded versions and EPUB copies grouped beneath it. Files remain in their original locations.
+Build Tome Raider as an Avalonia desktop application with a shared .NET/C# core. The owner selects existing folders and manually scans or rescans them, including subfolders. The catalogue presents one entry per work, with downloaded versions and EPUB copies grouped beneath it. Files remain in their original locations.
 
 Provide basic EPUB metadata and optional richer AO3 extraction, title/author search, combined filters, word-count sorting, personal reading status, ratings, Likes, and one editable note per work. Show which downloaded versions have been read and which imported updates remain unread. Open a selected copy in the operating system's associated reader.
 
@@ -97,6 +99,7 @@ These are observable product outcomes, independent of the internal class or data
 
 ### Accepted direction
 
+- The app is **Tome Raider**, with the owner-provided tagline **Raid. Hoard. Read.** Use **TomeRaider** as the .NET identifier prefix; concrete assemblies follow the actual module responsibilities.
 - Follow ADR 0001: Avalonia presentation and a shared .NET/C# implementation. The initial desktop runtime target is Pop!_OS 24.04. Windows compatibility is preferred; Android collection management is a later product release, with an early capability proof to validate runtime and file access.
 - Follow ADR 0002: internal Work identity, optional external source identifiers, and optional AO3 enrichment. Treat a package identifier, source identifier, downloaded version, and local file location as distinct concepts. Source identifiers are evidence for matching, not a requirement for a work to exist.
 - Follow ADR 0003: Clean Architecture without CQRS. Domain is independent; Application depends on Domain and owns the adapter interfaces; Infrastructure and Presentation depend inward, and hosts compose the concrete implementations. Use ordinary Application method calls for lookups and changes, with one catalogue design and persistence model rather than command/query handler pipelines or split read/write stores.

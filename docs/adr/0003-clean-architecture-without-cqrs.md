@@ -15,4 +15,4 @@ Put production projects and runtime-proof code under `src/`; put automated test 
 
 This extends ADRs 0001 and 0002. The trade-off is explicit dependency and project discipline instead of the smaller initial footprint of a UI-owned implementation. It does not require a handler per operation or a separate abstraction for every class.
 
-The owner subsequently selected TUnit, conditional Testcontainers use, and mandatory architecture tests; the [testing conventions](../development/testing.md) record those choices and the dependency checks that enforce this ADR. The application name remains to be selected.
+The owner subsequently selected TUnit, conditional Testcontainers use, and mandatory architecture tests; the [testing conventions](../development/testing.md) record those choices and the dependency checks that enforce this ADR.

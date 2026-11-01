@@ -1,4 +1,4 @@
-# Production source
+# Tome Raider — production source
 
 Production projects and runtime-proof implementation belong under this repository-root directory.
 
@@ -10,4 +10,4 @@ Follow [Clean Architecture without CQRS](../docs/adr/0003-clean-architecture-wit
 - Presentation calls Application through Avalonia views and presentation logic.
 - Desktop and Android hosts compose the concrete implementations and platform adapters.
 
-Use ordinary Application methods for lookups and changes through one catalogue design. Concrete project names and assembly counts will follow the module responsibilities during scaffolding. The [architecture outline](../docs/architecture/cross-platform-proposal.md) records the dependency direction and platform responsibilities.
+Use ordinary Application methods for lookups and changes through one catalogue design. Use **TomeRaider** as the .NET project and namespace prefix; concrete project names and assembly counts will follow the module responsibilities during scaffolding. The [architecture outline](../docs/architecture/cross-platform-proposal.md) records the dependency direction and platform responsibilities.

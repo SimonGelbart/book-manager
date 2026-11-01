@@ -38,6 +38,8 @@ Automated architecture tests must enforce these dependency rules using TUnit. Ch
 
 The owner requires **`src/` for production projects** and **`tests/` for test projects and committed synthetic fixtures**. Runtime-proof implementation also belongs under `src/`, with its automated checks and fixtures under `tests/`. Planning, specifications, research, and ADRs remain under `docs/`.
 
+The application is **Tome Raider**; use **TomeRaider** as the .NET project and namespace prefix.
+
 Domain, Application, Infrastructure, Presentation, and platform-host responsibilities guide the eventual project layout; concrete project names and assembly counts are not fixed by this outline. Keep the interfaces small and place them at real extraction, persistence, and platform seams.
 
 ## Proposed modules

@@ -1,6 +1,10 @@
-# Product brief
+# Tome Raider — product brief
 
 Status: MVP product scope confirmed on 2026-11-01. The user reported no essential missing capability after the scope review. This brief preserves the discovery record; the [MVP specification draft](../specs/mvp-epub-catalogue.md) consolidates the requirements, acceptance examples, and proposed testing boundary.
+
+## Application name — confirmed 2026-11-01
+
+The owner chose **Tome Raider**, with the tagline **Raid. Hoard. Read.** Use **TomeRaider** as the identifier form for .NET project and namespace prefixes; concrete assembly names follow their module responsibilities during scaffolding.
 
 ## User and current problem
 

@@ -1,4 +1,4 @@
-# Automated tests and fixtures
+# Tome Raider — automated tests and fixtures
 
 Automated test projects, shared test helpers, and committed synthetic EPUB fixtures belong under this repository-root directory.
 

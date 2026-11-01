@@ -1,4 +1,6 @@
-# book-manager
+# Tome Raider
+
+*Raid. Hoard. Read.*
 
 Project discovery and planning are in progress.
 
