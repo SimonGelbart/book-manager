@@ -1,10 +1,27 @@
-# Tome Raider — proposed implementation tickets
+# Tome Raider — implementation tickets
 
-Date: 2026-11-01. Status: **draft breakdown for owner review** using Matt's `to-tickets` workflow. The [MVP specification](../specs/mvp-epub-catalogue.md) and Application test seam are approved. New task issues have not yet been published.
+Date: 2026-11-01. Status: **owner-approved and published** using Matt's `to-tickets` workflow. The owner approved the breakdown and dependency order. The [MVP specification](../specs/mvp-epub-catalogue.md) and Application test seam are approved; nine new task issues were published, reusing the existing runtime gate.
 
-Parent: [specification issue #2](https://github.com/SimonGelbart/book-manager/issues/2). **T1–T10 are temporary plan identifiers**, not GitHub issue numbers. T1 reuses the existing [runtime proof issue #1](https://github.com/SimonGelbart/book-manager/issues/1); do not create a duplicate.
+Parent: [specification issue #2](https://github.com/SimonGelbart/book-manager/issues/2). **T1–T10 are plan aliases**, not GitHub issue numbers. T1 reuses the existing [runtime proof issue #1](https://github.com/SimonGelbart/book-manager/issues/1). All ten task issues are labeled `ready-for-agent`; agents must respect the blocking links before starting dependent work.
 
-## Proposed breakdown
+## Published issue mapping
+
+The GitHub connector exposes issue creation and labels but not native dependency relationships. Each new issue therefore records its real blocking issue links in a **Blocked by** section.
+
+| Plan alias | GitHub task | Blocked by |
+|---|---|---|
+| T1 | [#1 — Validate Avalonia/.NET import and persistence on target platforms](https://github.com/SimonGelbart/book-manager/issues/1) | No issue blocker; SDK/device prerequisites apply |
+| T2 | [#3 — Durable folder catalogue and metadata](https://github.com/SimonGelbart/book-manager/issues/3) | [#1](https://github.com/SimonGelbart/book-manager/issues/1) |
+| T3 | [#4 — Work association and import review](https://github.com/SimonGelbart/book-manager/issues/4) | [#3](https://github.com/SimonGelbart/book-manager/issues/3) |
+| T4 | [#5 — Versions, duplicates, and metadata source](https://github.com/SimonGelbart/book-manager/issues/5) | [#4](https://github.com/SimonGelbart/book-manager/issues/4) |
+| T5 | [#6 — Personal reading records](https://github.com/SimonGelbart/book-manager/issues/6) | [#4](https://github.com/SimonGelbart/book-manager/issues/4) |
+| T6 | [#7 — Read versions, unread updates, and catch-up](https://github.com/SimonGelbart/book-manager/issues/7) | [#5](https://github.com/SimonGelbart/book-manager/issues/5), [#6](https://github.com/SimonGelbart/book-manager/issues/6) |
+| T7 | [#8 — Search, filters, and length ordering](https://github.com/SimonGelbart/book-manager/issues/8) | [#7](https://github.com/SimonGelbart/book-manager/issues/7) |
+| T8 | [#9 — Rescan reconciliation and retained information](https://github.com/SimonGelbart/book-manager/issues/9) | [#7](https://github.com/SimonGelbart/book-manager/issues/7) |
+| T9 | [#10 — Default desktop reader handoff](https://github.com/SimonGelbart/book-manager/issues/10) | [#3](https://github.com/SimonGelbart/book-manager/issues/3) |
+| T10 | [#11 — Desktop delivery and collection-scale validation](https://github.com/SimonGelbart/book-manager/issues/11) | [#8](https://github.com/SimonGelbart/book-manager/issues/8), [#9](https://github.com/SimonGelbart/book-manager/issues/9), [#10](https://github.com/SimonGelbart/book-manager/issues/10) |
+
+## Approved breakdown
 
 1. **T1 — Prove the runtime and local persistence.** **Blocked by:** no issue; requires a development environment where the SDK starts and access to the target platforms. **Delivers:** a minimal folder-to-EPUB-to-saved-status/note workflow through the same C# implementation on the executed desktop/Android hosts. Existing issue #1 is the gate.
 2. **T2 — Catalogue existing folders with durable metadata.** **Blocked by:** T1. **Delivers:** recursive scans, a basic collection/details view, generic EPUB import and AO3 metadata enrichment, with unchanged rescans retaining records. Establish the executable TUnit and architecture-check workflow in this first production slice.
@@ -17,7 +34,7 @@ Parent: [specification issue #2](https://github.com/SimonGelbart/book-manager/is
 9. **T9 — Open a selected copy in the desktop reader.** **Blocked by:** T2. **Delivers:** working default-reader handoff for a selected copy, with understandable failure results and unchanged reading records.
 10. **T10 — Package and validate the desktop MVP at collection scale.** **Blocked by:** T7, T8, and T9. **Delivers:** a documented Pop!_OS installation/package, an exercised full workflow with thousands of entries, passing test/architecture checks, and clearly scoped Windows compatibility evidence.
 
-T4 and T5 can proceed independently after T3. T9 can proceed after T2. T7 and T8 can proceed independently after T6. Keep only genuine blocking edges when publishing the approved issues.
+T4 and T5 can proceed independently after T3. T9 can proceed after T2. T7 and T8 can proceed independently after T6. The published blocking links preserve these edges; work only the frontier whose blocking tasks are complete.
 
 ## Shared delivery rules
 

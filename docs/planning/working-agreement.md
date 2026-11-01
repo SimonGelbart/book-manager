@@ -65,7 +65,7 @@ The branch, use of Matt Pocock Skills, and regular commits are agreed. Product r
 
 The owner confirmed the MVP scope, architecture and tooling preferences, application name, and primary Application test seam. The specification is ready for implementation planning.
 
-- Draft and review dependent implementation slices with `to-tickets` before publishing the new task issues.
+- The owner approved the [implementation slices](implementation-plan.md), which are now published as GitHub issues with explicit blocking links. Follow the unblocked frontier, beginning with the existing runtime proof.
 - Complete the existing runtime capability proof and validate identity/comparison behavior before dependent implementation.
 - Build the approved slices with TUnit behavior/integration tests and required architecture checks, retaining focused commits.
 
