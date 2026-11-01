@@ -14,7 +14,7 @@ Observed on Pop!_OS 24.04 (`pop`, x86_64), kernel `7.2.6-76070206-generic`:
 
 | Component | Observed value |
 |---|---|
-| .NET SDK | 10.0.114 |
+| .NET SDK | 10.0.114 (the owner-requested local SDK; it starts successfully) |
 | .NET host/runtime | 10.0.14; Microsoft.NETCore.App and Microsoft.AspNetCore.App |
 | Workload set | 10.0.402 |
 | Android workload | manifest `36.1.118/10.0.100` |
@@ -25,6 +25,10 @@ Observed on Pop!_OS 24.04 (`pop`, x86_64), kernel `7.2.6-76070206-generic`:
 | Test runner | TUnit 1.77.0; Microsoft.Testing.Platform 2.5.2 resolved transitively |
 
 The repository pins the runnable local SDK in `global.json`. The Android SDK and JDK are local development prerequisites and are not repository assets.
+
+Resolved NuGet graphs are captured in the per-project `packages.lock.json` files and CI restores the test graphs in locked mode.
+
+The earlier candidate research names SDK 10.0.403 and Microsoft OpenJDK 21 as the preferred fresh pins. This execution used the SDK already installed in the requested local environment (10.0.114) and the JDK selected by the Android dependency installer (17.0.14). The successful build is evidence for this exact local combination; it is not a claim that the 10.0.403/JDK 21 combination has also been validated.
 
 The Android workload was installed with:
 
@@ -50,6 +54,7 @@ The dependency installer supplied the local Android SDK/JDK used for the build. 
 | SDK starts locally | `dotnet --info`, `dotnet --list-sdks`, `dotnet --list-runtimes` | Passed with SDK 10.0.114 and runtime 10.0.14. |
 | Shared generic/AO3 import and SQLite reopen | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --no-build` | Passed: 2/2 tests. Both cases use the same Application and SQLite implementation; the status and note were recovered after constructing a new catalogue instance. |
 | Architecture direction | `dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --no-build` | Passed: 4/4 tests. Project references, cycle absence, inner-layer restrictions, forbidden-edge rejection, and empty-selection rejection are checked. |
+| Full repository test suite | `dotnet test --solution TomeRaider.slnx -p:AndroidSdkDirectory=... -p:JavaSdkDirectory=...` | Passed: 6/6 tests, 0 failed, 0 skipped. |
 | Desktop build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --no-restore` | Passed: 6 projects, 0 errors, 0 warnings. |
 | Pop!_OS display startup | `XDG_SESSION_TYPE=wayland`, `WAYLAND_DISPLAY=wayland-1`, `DISPLAY=:1`, `XDG_CURRENT_DESKTOP=COSMIC`; `dotnet run --project src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --no-build` | Passed native startup for an 8-second run with no Avalonia or CoreCLR exception. The timeout exit 124 was the intentional process stop. The actual folder picker and UI import were not exercised in this automated session. |
 | Desktop workflow seam | Application test using `PhysicalFileSource` over a synthetic folder with recursive enumeration | Passed through the public Application interface; this is not a substitute for native picker evidence. |
