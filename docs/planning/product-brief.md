@@ -1,0 +1,202 @@
+# Tome Raider — product brief
+
+Status: MVP product scope and testing interface confirmed on 2026-11-01. The user reported no essential missing capability after the scope review and approved the primary Application test seam. This brief preserves the discovery record; the [MVP specification](../specs/mvp-epub-catalogue.md) consolidates the requirements, acceptance examples, and accepted testing approach.
+
+## Application name — confirmed 2026-11-01
+
+The owner chose **Tome Raider**, with the tagline **Raid. Hoard. Read.** Use **TomeRaider** as the identifier form for .NET project and namespace prefixes; concrete assembly names follow their module responsibilities during scaffolding.
+
+## User and current problem
+
+The project is initially for the owner's personal use. They have thousands of downloaded EPUBs on their phone and computer. The collection consists of works from Archive of Our Own (AO3).
+
+They want to organize the collection, follow what they have read, and find something new to read among downloads they already have.
+
+## Source coverage — confirmed 2026-11-01
+
+The MVP includes basic support for non-AO3 EPUBs alongside richer AO3 metadata extraction. The collection that motivated the project is AO3-focused, but the catalogue and personal reading features must support works from other sources.
+
+Use a general **Work** with an internal catalogue identity and optional external source identifiers. AO3 identity is optional; AO3 extraction enriches a work with available fandoms, categorized tags, and publication information. Generic EPUBs use their available metadata and support reading status, personal notes, personal ratings, and Likes. Source-specific fields can be unavailable without preventing import or personal tracking. [ADR 0002](../adr/0002-source-independent-work-identity.md) records the architectural consequence.
+
+An ordinary EPUB without an AO3 link can be catalogued normally. Use **Needs review** for genuinely ambiguous identification or conflicting work associations, preserving the file location and available metadata without an uncertain automatic merge. Needs review is an import-review condition, separate from the personal reading status Unknown.
+
+## Confirmed needs
+
+- Classify and organize the existing collection.
+- Record reading status so previously read items can be identified.
+- Add personal notes.
+- Make existing downloads easier to find and choose from.
+- Reuse information already present in AO3 downloads, including fandoms, tags, and word counts, to reduce manual organization.
+- Account for a collection of thousands of EPUBs.
+
+## Target platforms
+
+- The MVP starts on the computer.
+- Pop!_OS 24.04 is the user's current Linux system and the initial target.
+- Windows compatibility is preferred. It has not been stated as a mandatory condition for the MVP.
+- A similar Android collection-management app is a long-term goal and must influence the initial architecture, even though it is outside the MVP.
+- The user's current phone runs Android 16.
+
+## MVP scope boundary
+
+Synchronization of reading status and personal notes between phone and computer is a desired feature, but is not required for the MVP. The user chose an Avalonia application with .NET/C#; installation and packaging remain undecided.
+
+OR filtering is a possible later feature and is explicitly outside the MVP.
+
+Online AO3 update checking is deferred. The MVP detects changes from newly imported or rescanned EPUBs in the user's downloaded collection.
+
+Automatic word counting from EPUB text is deferred. The MVP imports reported counts when available and displays **Unknown** when a count is absent.
+
+## File handling
+
+The MVP catalogues EPUBs in their existing folders. The user accepted this approach, with physical file reorganization left for later rather than importing copies into an application-managed folder.
+
+The user chooses folders and manually runs Scan/Rescan to discover or refresh EPUB copies. Scans include subfolders. Automatic folder monitoring is deferred until after the MVP.
+
+This scope decision concerns file locations. Classification and browsing within book-manager remain part of the collection-management goal.
+
+### Opening an EPUB
+
+Include an **Open in default reader** action in the desktop MVP for the selected EPUB copy. Hand the selected file to the operating system's associated external reader. Opening a file does not change personal reading status or mark a downloaded version read.
+
+If the selected copy is unavailable or the external reader cannot be launched, show the problem while preserving the catalogue and reading information. An integrated reader remains a later extension.
+
+### Missing files and retained information
+
+When a successful rescan establishes that a previously catalogued EPUB copy is missing, retain its last-known location and stored information. If all known EPUB copies of a work are missing, keep the work in the catalogue and show **Files missing**.
+
+Preserve all catalogue information for the work: imported metadata, known downloaded versions and copy records, reading history and status, personal note, personal rating, and Like. Missing files must not automatically delete this information. The user explicitly chose to retain it even when the EPUB copies are no longer available.
+
+A failed or incomplete scan does not establish that a file is missing. Recognizing and reconnecting moved or returned copies remains to be specified.
+
+## Work identity, duplicates, and downloaded versions
+
+The user expects only a few duplicate files in the existing collection. Duplicate detection and grouping remain part of the MVP.
+
+- Represent each work once in the collection, even when several EPUB copies exist.
+- Share reading status and personal notes across those copies.
+- Keep track of the location of each EPUB copy.
+- Show a visible duplicate indicator for identical duplicate EPUB copies.
+- For the MVP, distinguish updated downloaded versions from identical duplicates, such as a ten-chapter copy and a twelve-chapter copy of the same AO3 work.
+- Treat edits to existing chapter text as a different downloaded version even when the chapter count stays the same. Equal chapter counts alone do not establish that EPUB copies are identical duplicates.
+- For the same work, treat EPUB copies with identical chapter text as duplicates of the same downloaded version when they differ only in covers, fonts, or layout. Keep each copy's file location and show the duplicate indicator. These cosmetic differences do not trigger Text revised or new chapters indicators.
+- Keep different downloaded versions grouped under the same work.
+
+Grouping applies to the catalogue; the EPUB copies remain in their existing folders. Chapter-text equality and cosmetic differences now have agreed product semantics; the matching and content-comparison methods still need to be specified and validated.
+
+### Metadata source across downloaded versions
+
+Use the newest downloaded version's metadata for the main catalogue and its filters, including tags, word count, and AO3 completion status. Keep older downloaded versions and their stored metadata accessible. Importing an older copy later must not replace newer metadata merely because it was scanned more recently.
+
+The user clarified that "selected status" means the newest version's **AO3 completion status** (Complete or Unfinished). Personal reading status and read-version history remain independent and are preserved on import: a work whose ten-chapter version was read can still show **Read; 2 new chapters** after a twelve-chapter version is imported.
+
+When the app cannot reliably determine which downloaded version is newest, flag the uncertainty and let the user choose which version supplies the catalogue metadata. Preserve all downloaded versions and the personal reading history. The method for automatically determining version order still needs to be specified and validated.
+
+## Reading status and personal ratings
+
+Use the five reading statuses defined in the [domain glossary](../../CONTEXT.md): Unknown, Unread, Reading, Read, and Dropped. Unknown covers existing downloads whose reading history has not yet been recorded.
+
+Newly imported works default to **Unknown**. The user accepted this because existing downloads may already have been read. Importing another EPUB copy or downloaded version of an already catalogued work preserves its existing reading status.
+
+For the MVP, provide an optional personal rating for works marked Read or Dropped. The user chose a 1–5-star scale with half-star steps: 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, and 5 stars. A work can be marked Read or Dropped without assigning a personal rating.
+
+Also provide an optional Like button, following the user's Letterboxd-style reference. Like is available on any work, independently of reading status and personal rating, including works not yet finished or rated. Changing Like leaves reading status and the personal rating unchanged.
+
+These are the user's own assessments, distinct from the work's imported AO3 content rating.
+
+## Personal notes
+
+For the MVP, provide one editable text note per work, shared across its EPUB copies and downloaded versions.
+
+Chapter and passage annotations are deferred to the later reader extension.
+
+## Reading updates
+
+When a work marked Read receives a newly imported EPUB copy with additional chapters, keep the work marked Read and show a new chapters indicator. Preserve the record that the earlier downloaded version was read.
+
+Make the read version visible alongside the additional chapters available in an imported downloaded version. For example, after importing a twelve-chapter version of a work whose ten-chapter version was marked Read, show **Read: 10 chapters; available: 12 chapters; 2 new chapters**. The reading status remains Read, and the imported update does not advance the reading record automatically.
+
+Provide an explicit **Mark this version read** action for a selected downloaded version. After catching up in the example, this records the twelve-chapter version as read and clears the new chapters indicator. Retain the earlier information that the ten-chapter version was read. If another known downloaded version still contains additional unread chapters, its new chapters indication remains.
+
+When a newer downloaded version revises existing chapter text without adding chapters, show **Text revised** while preserving the personal reading status and earlier read-version information. Keep this indicator visible until the user explicitly marks the revised version read with **Mark this version read**. For example, a revised ten-chapter version can show **Read; Text revised** without claiming that new chapters were added.
+
+The user confirmed that both what has been read and what remains unread after an update must be visible. For the MVP, detect updates when a scan imports a newer or changed downloaded version from an EPUB. The available chapter count describes the downloaded collection; the MVP does not check AO3 online for chapters not yet downloaded. Online update checking is a possible later feature.
+
+## Current constraints
+
+- Personal use is the initial scope; a public service is not currently requested.
+- The user has no server available for hosting at present. This is a current constraint, not yet an architectural decision about future hosting or synchronization.
+
+## Development experience
+
+The user is familiar with .NET/C#, Python, and React. They are willing to try Kotlin, Rust, or Go when there is a concrete benefit, and can learn another language if needed. After comparing the options, they chose Avalonia and .NET.
+
+The user wants the most up-to-date versions possible and is willing to install a different .NET SDK. An SDK already installed on their computer is not a project constraint. The current recommendation is to use the newest stable versions compatible with the desktop and Android targets; prerelease adoption has not been requested explicitly.
+
+## Possible later extension
+
+The future Android app should offer similar collection-management capabilities. It could also include a reader or reader integration. Collection management is the initial priority; an integrated reader is not a first-version requirement.
+
+## Chosen architecture direction
+
+The user proposed separating the frontend from the runner with adapters, and emphasized planning for Linux, Windows, and Android together. A desktop-specific implementation should not determine the shared collection and reading logic.
+
+Use Avalonia with a shared .NET/C# application core, with separate desktop and Android entry projects. Keep platform file access behind adapters and keep UI/platform types outside the shared collection and reading logic. This is the user's selected direction; successful operation on the target devices has not yet been demonstrated.
+
+The owner additionally requires **Clean Architecture without CQRS**, with production projects under repository-root **`src/`** and test projects/fixtures under **`tests/`**. Application use cases use ordinary methods for reads and changes; dependency rules and composition responsibilities are recorded in [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md).
+
+The owner selected **TUnit**, **Testcontainers when necessary for integration tests**, and **architecture tests** to enforce the design. These development requirements are recorded in the [testing conventions](../development/testing.md).
+
+See [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md), the [architecture proposal](../architecture/cross-platform-proposal.md), and the [runtime research](../research/runtime-fit-existing-skills.md). The small import-and-persistence proof remains the next technical gate. Package versions, SQLite, and packaging are validation candidates rather than separately accepted production decisions.
+
+## Collection browsing and discovery
+
+Provide title and author search in the MVP. Search can be combined with the catalogue filters to find a specific work within a narrowed collection.
+
+Support filters for fandom, reading status, AO3 completion status, and tags alongside word-count constraints. A work must contain all required tags and none of the excluded tags. Combine all active filter rules with AND for the MVP; the user chose this simpler query model.
+
+Include an **Updates to read** filter for works currently showing a new chapters indicator or a Text revised indicator. Combine it with search and the other active filters using AND. Marking a version read removes the work from this result set once no unread update indicators remain; a work stays included while another known unread update remains.
+
+Provide an optional Complete or Unfinished filter based on the completion status recorded in a downloaded EPUB. Keep this separate from personal reading status: a complete work can be Unread, and an unfinished work can be marked Read for the version already read.
+
+Show the word count as part of a work's information when available. The count describes a downloaded version, so different versions of the same work may have different counts. For any EPUB without a reported count, display **Unknown** and retain normal catalogue and personal reading features. Do not substitute zero or calculate a count from the text in the MVP.
+
+Support word-count range filtering with optional minimum and maximum values. Either bound can be used alone, both can define a range such as 10,000–50,000 words, or both can be left unset. Combine the word-count constraints with the other selected filters.
+
+Displayed and filtered metadata, including word count and AO3 completion status, comes from the newest downloaded version, or the user-selected metadata source when version order is uncertain. Support word-count sorting in both directions: **shortest first** and **longest first**. Sorting uses the same version's word count as the catalogue display and range filters.
+
+## Metadata investigation
+
+AO3's official source passes work tags into the ebook conversion metadata and preserves separate tag groups in the download preface. This supports investigating extraction from both the ebook metadata and the front matter, rather than assuming the metadata alone preserves tag categories.
+
+The download preface also includes the work's reported word count, providing a source to investigate for this field.
+
+Verified against source snapshot `aa99cd45c8b39a60944c4e038a53f5a051098b71`:
+
+- [AO3 ebook metadata conversion](https://github.com/otwcode/otwarchive/blob/aa99cd45c8b39a60944c4e038a53f5a051098b71/app/models/download_writer.rb).
+- [AO3 download preface](https://github.com/otwcode/otwarchive/blob/aa99cd45c8b39a60944c4e038a53f5a051098b71/app/views/downloads/_download_preface.html.erb).
+
+These source-code findings do not guarantee that every existing download uses the same structure. Older downloads, third-party conversions, and edited EPUBs may differ.
+
+One user-provided English-language EPUB 2.0 sample has now been inspected. It provides a canonical AO3 work link, categorized tags, word count, chapter information, title, author, summary, and publication/completion dates. The package identifier is a UUID rather than the canonical AO3 work identity, and the preface is split across two spine documents.
+
+See [EPUB metadata validation](../research/epub-metadata-validation.md) for the specimen observations, primary-source locators, importer recommendations, and limits. Series extraction and comparison of duplicate or updated copies have not yet been validated against representative specimens.
+
+## Implementation investigations still open
+
+- What evidence is sufficient to identify identical duplicates and distinguish downloaded versions reliably.
+- How to match EPUB copies to a work when source identifiers are absent or inconsistent. Optional source identity and review of ambiguous associations are agreed.
+- How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
+- How to determine version order automatically from available evidence. Flagging uncertainty and allowing the user to choose the catalogue metadata source is agreed.
+- Installation expectations, existing tools, storage arrangements, and other fixed constraints.
+
+## Questions deferred to later releases
+
+- How files move between devices and how synchronization should work.
+- Whether the later Android reader integration means opening another app or reading inside book-manager.
+
+The current filter set and other product capabilities are sufficient for the agreed MVP. Remaining implementation investigations are validation tasks, rather than requests to expand the first release.
+
+## Interview record — 2026-10-31
+
+The initial purpose is now established: manage a personal AO3 EPUB collection, track reading, add notes, and make the existing collection easier to browse. The MVP starts on the computer, targeting the user's Linux system with Windows compatibility preferred. The subsequent runtime discussion settled on Avalonia and .NET/C#; device validation, storage design, synchronization, and packaging remain open.

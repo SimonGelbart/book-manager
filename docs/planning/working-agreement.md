@@ -1,0 +1,73 @@
+# Planning working agreement
+
+## Purpose
+
+Keep the evolution of book-manager understandable through small commits and concise explanations of the decisions behind each change.
+
+## Agreed working practices
+
+- Keep the completed discovery, specification, and architecture work on `planning/project-foundation` for review through a pull request into `main`.
+- Use a separate branch for each implementation slice. Start `feat/runtime-capability-proof` from the planning branch while its pull request is open; after the planning pull request merges, bring that branch onto the updated `main` before opening its implementation pull request.
+- Use Matt Pocock Skills to guide this work.
+- The application is **Tome Raider**, with the tagline **Raid. Hoard. Read.** Use **TomeRaider** as the identifier prefix when scaffolding .NET projects and namespaces.
+- Follow [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md): Clean Architecture without CQRS, production code under repository-root `src/`, and automated tests and fixtures under `tests/`.
+- Follow the [testing conventions](../development/testing.md): TUnit, Testcontainers where needed by an integration, and required architecture checks for the agreed dependency rules.
+- Commit regularly as we settle a coherent part of the plan, so the history shows how the project evolved.
+- Track features, implementation tasks, bugs, and acceptance criteria in GitHub Issues for `SimonGelbart/book-manager`.
+- Keep requirements, the glossary, architecture notes, and ADRs in the repository so their evolution remains visible in commits. Link issues to the relevant documents.
+
+## Tracking decision — 2026-10-31
+
+Use GitHub Issues for tracking work and Git for project documentation. This keeps work alongside the existing repository and lets issues connect implementation progress to documented decisions.
+
+Local Markdown task files were considered. GitHub Issues was chosen to make work status and links to branches and pull requests visible while preserving the history of requirements and design decisions in Git.
+
+Repository documents are the source of truth for requirements and design. Issues reference those documents and carry task-specific acceptance criteria and progress.
+
+## Repository setup decision — 2026-10-31
+
+Use `AGENTS.md` as the repository's agent instruction file. It points to the approved issue-tracker, triage-label, and domain-documentation conventions under `docs/agents/`.
+
+Keep the default triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. This lets the Matt Pocock workflows use their standard vocabulary without a custom mapping.
+
+The user reviewed and approved the setup before it was written. The requirements interview is the next step.
+
+## Interview pacing decision — 2026-10-31
+
+The user requested a sequential interview pace. The rule is recorded in `AGENTS.md` and takes precedence over the grilling skill's default question batching. This lets each answer inform the next question.
+
+## How we will record progress
+
+Each planning change should state what changed and why. Where relevant, include the constraints, alternatives considered, consequences, and questions still open.
+
+Keep proposals distinguishable from agreed decisions. When new information changes a decision, explain the change in a later commit so the earlier context remains understandable.
+
+Use one focused commit for each meaningful update, such as clarifying the first release, defining a domain term, resolving an architectural trade-off, or completing an implementation behavior. Commit messages should describe the change; add a body when its motivation needs explanation. Push these commits to the active branch as we go.
+
+## Documentation approach
+
+Following the Matt Pocock workflow:
+
+- Clarify requirements and design choices through `grill-with-docs`.
+- Create `CONTEXT.md` when the first domain term is settled. Keep it a glossary.
+- Create ADRs under `docs/adr/` when a decision is costly to reverse, needs context to understand, and reflects a real trade-off.
+- Turn the agreed plan into a specification with `to-spec`.
+- Break the specification into implementation tasks with `to-tickets` when appropriate.
+
+Configure the repository's skill conventions before beginning that engineering workflow.
+
+## Starting point — 2026-10-31
+
+The repository began empty. A minimal README established `main`; the planning branch was then created from that baseline.
+
+The branch, use of Matt Pocock Skills, and regular commits are agreed. Product requirements and technical choices remain open.
+
+## Next work — 2026-11-01
+
+The owner confirmed the MVP scope, architecture and tooling preferences, application name, and primary Application test seam. The specification is ready for implementation planning.
+
+- The owner approved the [implementation slices](implementation-plan.md), which are now published as GitHub issues with explicit blocking links. Follow the unblocked frontier, beginning with the existing runtime proof.
+- Complete the existing runtime capability proof and validate identity/comparison behavior before dependent implementation.
+- Build the approved slices with TUnit behavior/integration tests and required architecture checks, retaining focused commits.
+
+See the [agent-skill setup guide](../development/agent-skills.md) for installation choices; the repository's tracker, glossary, ADR, and one-question interview conventions are already configured.
