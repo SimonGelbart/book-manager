@@ -47,6 +47,9 @@ A signal that an imported downloaded version contains additional chapters beyond
 **Text revised indicator**:
 A signal that a newer imported downloaded version revises existing chapter text relative to a read version, including revisions that leave the chapter count unchanged. It is distinct from the new chapters indicator.
 
+**Unread update**:
+New chapters or revised chapter text in an imported downloaded version that the user has not yet marked read.
+
 **Personal rating**:
 The user's own optional assessment of a work on a 1–5-star scale in half-star steps, distinct from source-provided content classifications such as an AO3 content rating.
 _Avoid_: Grade or rating alone when it could be confused with AO3 content rating.

@@ -141,6 +141,8 @@ Provide title and author search in the MVP. Search can be combined with the cata
 
 Support filters for fandom, reading status, AO3 completion status, and tags alongside word-count constraints. A work must contain all required tags and none of the excluded tags. Combine all active filter rules with AND for the MVP; the user chose this simpler query model.
 
+Include an **Updates to read** filter for works currently showing a new chapters indicator or a Text revised indicator. Combine it with search and the other active filters using AND. Marking a version read removes the work from this result set once no unread update indicators remain; a work stays included while another known unread update remains.
+
 Provide an optional Complete or Unfinished filter based on the completion status recorded in a downloaded EPUB. Keep this separate from personal reading status: a complete work can be Unread, and an unfinished work can be marked Read for the version already read.
 
 Show the word count as part of a work's information when available. The count describes a downloaded version, so different versions of the same work may have different counts. For any EPUB without a reported count, display **Unknown** and retain normal catalogue and personal reading features. Do not substitute zero or calculate a count from the text in the MVP.
@@ -172,7 +174,7 @@ See [EPUB metadata validation](../research/epub-metadata-validation.md) for the 
 - How to match EPUB copies to a work when source identifiers are absent or inconsistent. Optional source identity and review of ambiguous associations are agreed.
 - How rescans should recognize and reconnect moved or returned EPUB copies. Retaining catalogue information when files are missing is agreed.
 - How files currently move between devices.
-- Whether any additional metadata filters are essential beyond fandom, tags, reading status, AO3 completion status, and word count.
+- Whether any additional filters are essential beyond fandom, tags, reading status, AO3 completion status, word count, and Updates to read.
 - How to determine version order automatically from available evidence. Flagging uncertainty and allowing the user to choose the catalogue metadata source is agreed.
 - Whether a reader integration means opening another Android app or reading inside book-manager.
 - Installation expectations, existing tools, storage arrangements, and other fixed constraints.
