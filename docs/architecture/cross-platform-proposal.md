@@ -32,6 +32,8 @@ The diagram shows the inward direction of code dependencies. Outer implementatio
 
 Expose ordinary methods for catalogue lookups and changes through cohesive Application modules. Use a shared catalogue design and persistence model. CQRS-style command/query handler pipelines and separate read/write stores are outside the chosen architecture. Input and result models remain appropriate where they keep the Application interface clear.
 
+Automated architecture tests must enforce these dependency rules using TUnit. Check production project references and code/type dependencies where feasible, explicitly account for host composition, and reject empty selections. The [testing conventions](../development/testing.md) define the required checks. Testcontainers is reserved for integrations that need a containerized dependency; architecture checks and embedded SQLite tests do not require one.
+
 ## Repository layout
 
 The owner requires **`src/` for production projects** and **`tests/` for test projects and committed synthetic fixtures**. Runtime-proof implementation also belongs under `src/`, with its automated checks and fixtures under `tests/`. Planning, specifications, research, and ADRs remain under `docs/`.

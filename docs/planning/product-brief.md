@@ -141,6 +141,8 @@ Use Avalonia with a shared .NET/C# application core, with separate desktop and A
 
 The owner additionally requires **Clean Architecture without CQRS**, with production projects under repository-root **`src/`** and test projects/fixtures under **`tests/`**. Application use cases use ordinary methods for reads and changes; dependency rules and composition responsibilities are recorded in [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md).
 
+The owner selected **TUnit**, **Testcontainers when necessary for integration tests**, and **architecture tests** to enforce the design. These development requirements are recorded in the [testing conventions](../development/testing.md).
+
 See [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md), the [architecture proposal](../architecture/cross-platform-proposal.md), and the [runtime research](../research/runtime-fit-existing-skills.md). The small import-and-persistence proof remains the next technical gate. Package versions, SQLite, and packaging are validation candidates rather than separately accepted production decisions.
 
 ## Collection browsing and discovery

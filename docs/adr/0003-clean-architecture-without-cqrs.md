@@ -13,4 +13,6 @@ Use one cohesive catalogue application design and persistence model for lookups 
 
 Put production projects and runtime-proof code under `src/`; put automated test projects, shared test helpers, and committed synthetic fixtures under `tests/`. Concrete project names and assembly counts can follow actual module responsibilities when scaffolding begins. The proposed primary automated test interface remains the Application interface; tests can compose real Infrastructure adapters without adding an Infrastructure dependency to Application.
 
-This extends ADRs 0001 and 0002. The trade-off is explicit dependency and project discipline instead of the smaller initial footprint of a UI-owned implementation. It does not require a handler per operation or a separate abstraction for every class. The testing framework and application name are still to be selected.
+This extends ADRs 0001 and 0002. The trade-off is explicit dependency and project discipline instead of the smaller initial footprint of a UI-owned implementation. It does not require a handler per operation or a separate abstraction for every class.
+
+The owner subsequently selected TUnit, conditional Testcontainers use, and mandatory architecture tests; the [testing conventions](../development/testing.md) record those choices and the dependency checks that enforce this ADR. The application name remains to be selected.

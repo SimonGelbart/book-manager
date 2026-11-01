@@ -100,7 +100,8 @@ These are observable product outcomes, independent of the internal class or data
 - Follow ADR 0001: Avalonia presentation and a shared .NET/C# implementation. The initial desktop runtime target is Pop!_OS 24.04. Windows compatibility is preferred; Android collection management is a later product release, with an early capability proof to validate runtime and file access.
 - Follow ADR 0002: internal Work identity, optional external source identifiers, and optional AO3 enrichment. Treat a package identifier, source identifier, downloaded version, and local file location as distinct concepts. Source identifiers are evidence for matching, not a requirement for a work to exist.
 - Follow ADR 0003: Clean Architecture without CQRS. Domain is independent; Application depends on Domain and owns the adapter interfaces; Infrastructure and Presentation depend inward, and hosts compose the concrete implementations. Use ordinary Application method calls for lookups and changes, with one catalogue design and persistence model rather than command/query handler pipelines or split read/write stores.
-- Use the owner-required repository-root `src/` directory for production projects and runtime-proof code, and `tests/` for automated test projects, helpers, and committed synthetic fixtures. Concrete project names and the testing framework are still to be selected.
+- Use the owner-required repository-root `src/` directory for production projects and runtime-proof code, and `tests/` for automated test projects, helpers, and committed synthetic fixtures. Concrete project names are still to be selected.
+- Use TUnit for automated .NET tests. Use Testcontainers for integration tests when an implemented dependency needs a containerized service. Include automated architecture checks enforcing the accepted dependency rules in the standard test workflow and CI.
 - Separate presentation, application coordination, domain behavior, EPUB extraction, catalogue persistence, platform integrations, and runner composition. The shared collection and reading implementation must not require Avalonia or operating-system types.
 - Keep one application-facing boundary for scan/import, catalogue queries and details, resolving import review, personal-record changes, marking versions read, choosing a metadata source, and requesting external-reader launch. Adapter contracts supply source references, enumeration, readable EPUB data, and platform outcomes.
 - Keep file locations opaque to the shared core. Both desktop files and Android permission-granted documents must feed the same extraction/application implementation. Do not require a desktop-only sidecar for the phone.
@@ -134,13 +135,19 @@ These gates refine implementation readiness without reopening the agreed product
 
 ## Testing Decisions
 
+### Accepted tooling and architecture enforcement
+
+The owner selected **TUnit**, **Testcontainers when necessary for integration tests**, and **automated architecture tests**. Embedded SQLite persistence tests use isolated real temporary database files; container infrastructure is added when a real integration requires it.
+
+Architecture checks must enforce Domain independence, inward Application dependencies, outer implementation dependencies, and explicit host-composition allowances. Cover production project references as well as code/type dependencies where feasible; fail empty selections and provide useful violation diagnostics. The exact architecture-rule library remains subject to compatibility verification. Structural checks complement review of ordinary Application methods without CQRS.
+
 ### Proposed primary boundary — owner confirmation pending
 
-Test externally observable behavior through the **shared catalogue application interface**, the highest boundary common to the desktop and future phone hosts. There is no existing implementation or test framework to preserve; this proposes the new public boundary before tests are written.
+Test externally observable behavior through the **shared catalogue application interface**, the highest seam common to the desktop and future phone hosts. There is no existing implementation or test suite to preserve; this proposes the new public interface before tests are written.
 
 Supply synthetic EPUB streams and source references through the real adapter contract, exercise application requests, and assert returned collection/query state and persisted results. Use a temporary real local database for persistence behavior and reopen the Application module and catalogue to verify durability. Keep UI widget types, SQL statements, parser helpers, private methods, and internal call sequences out of behavior assertions.
 
-This proposal is compatible with the accepted Clean Architecture: the test composition supplies real Infrastructure adapters to Application-owned interfaces. Application itself does not reference Infrastructure, and the tests do not depend on CQRS handlers. The owner has not yet confirmed the proposed primary testing interface or selected a testing framework.
+This proposal is compatible with the accepted Clean Architecture: the test composition supplies real Infrastructure adapters to Application-owned interfaces. Application itself does not reference Infrastructure, and the tests do not depend on CQRS handlers. The owner has not yet confirmed this proposed primary behavior-testing interface; the TUnit choice and architecture-test requirement are already accepted.
 
 Use controlled source-access and reader-launch outcomes at the platform boundary for application tests. These can verify which selected copy was requested and how a failure is surfaced; they cannot establish actual operating-system launch or permission behavior.
 
@@ -152,7 +159,7 @@ Use controlled source-access and reader-launch outcomes at the platform boundary
 - Keep the owner's specimen and its identifying values out of public fixtures, reports, and committed test output. Existing specimen observations guide fixture structure, not copied narrative or metadata.
 - Use target-platform smoke checks for native startup, folder pickers, real stream access, SQLite native loading, and default-reader handoff. Android retained-access checks must enumerate and read after app and device restarts; reopening a bookmark object alone is insufficient.
 - Treat a Windows build, a Linux build, a headless UI check, and an actual target-device run as different evidence. Android proof does not imply a shipped Android MVP, and a build does not establish graphics, permissions, or reader launch.
-- Prior art: the repository contains planning documents and metadata/runtime investigations but no application code, automated tests, or successful prototype run. No test library or exact API signature has been selected.
+- Prior art: the repository contains planning documents and metadata/runtime investigations but no application code, automated tests, or successful prototype run. TUnit is selected, but package pins, executable runner configuration, and exact Application method contracts are not yet verified.
 - Current execution limit: the agent workspace installed an SDK but could not start managed SDK commands. No application build, automated behavior test, or target-device result is claimed by this specification.
 
 ## Out of Scope
@@ -183,6 +190,8 @@ After that check, break the specification into dependent implementation tasks, k
 - [ADR 0002: source-independent identity](../adr/0002-source-independent-work-identity.md)
 - [ADR 0003: Clean Architecture without CQRS](../adr/0003-clean-architecture-without-cqrs.md)
 - [Architecture outline](../architecture/cross-platform-proposal.md)
+- [Testing conventions](../development/testing.md)
+- [Testing toolchain research](../research/dotnet-testing-toolchain.md)
 - [EPUB specimen findings and limits](../research/epub-metadata-validation.md)
 - [Candidate toolchain](../research/validation-toolchain.md)
 - [Runtime proof execution record](../research/avalonia-proof-execution.md)
