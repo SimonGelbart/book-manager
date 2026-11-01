@@ -1,40 +1,65 @@
 # Avalonia/.NET capability proof: execution record
 
-Date: 2026-10-31. Direction: [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md). Scope: the [first capability proof](../architecture/cross-platform-proposal.md#first-capability-proof).
+Date: 2026-11-01. Direction: [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md). Scope: the [first capability proof](../architecture/cross-platform-proposal.md#first-capability-proof).
 
 ## Current result
 
-**Blocked before compilation in the agent workspace.** No application prototype has been generated, restored, built, or run. There is no target-device result yet.
+The selected .NET/Avalonia route starts and builds in the owner's local Pop!_OS environment. The shared import and persistence workflow is implemented and passes its executable TUnit and architecture checks. Desktop startup and cross-target compilation are verified; native folder picking, Android execution, retained grants, and Windows runtime behavior remain explicitly unverified.
 
-The official installer downloaded and installed .NET SDK **10.0.403** and runtime **10.0.14** into an isolated workspace directory. `dotnet --info` listed those installed versions, but managed SDK startup failed. `dotnet --version` also failed with exit code **137** and:
+The earlier CoreCLR startup failure remains an observation from a separate agent workspace. It was not reproduced here: the system SDK starts normally.
 
-```text
-Failed to create CoreCLR, HRESULT: 0x8007000E
-```
+## Local toolchain
 
-Setting an explicit GC heap limit and disabling runtime diagnostics did not resolve startup. The workspace has no `/proc` or `/sys` mount; syscall tracing is prohibited. These are observations, not a diagnosed cause. No system installation or privileged workaround was attempted. This failure does not establish whether .NET or Avalonia runs on the user's Pop!_OS system.
+Observed on Pop!_OS 24.04 (`pop`, x86_64), kernel `7.2.6-76070206-generic`:
 
-The installer, downloaded SDK, caches, and private EPUB remain outside the Git repository. The [toolchain research](validation-toolchain.md) records candidate versions and published artifact evidence separately from execution.
+| Component | Observed value |
+|---|---|
+| .NET SDK | 10.0.114 |
+| .NET host/runtime | 10.0.14; Microsoft.NETCore.App and Microsoft.AspNetCore.App |
+| Workload set | 10.0.402 |
+| Android workload | manifest `36.1.118/10.0.100` |
+| Android API/build tools/platform tools | API 36, build-tools 36.0.0, platform-tools 36.0.0 |
+| Java used for Android build | Microsoft OpenJDK 17.0.14, installed under `/home/simon/.local/share/tome-raider/jdk` |
+| Avalonia packages | 12.1.4 |
+| SQLite provider/bundle | Microsoft.Data.Sqlite 10.0.14; SQLitePCLRaw.bundle_e_sqlite3 2.1.14 |
+| Test runner | TUnit 1.77.0; Microsoft.Testing.Platform 2.5.2 resolved transitively |
 
-## Next executable slice
+The repository pins the runnable local SDK in `global.json`. The Android SDK and JDK are local development prerequisites and are not repository assets.
 
-Use a development environment where `dotnet --info` and `dotnet --version` complete successfully. Following the repository layout accepted in [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md), keep probe implementation under `src/` and any automated tests and committed fixtures under `tests/`. Confirm the chosen SDK before generating projects:
+The Android workload was installed with:
 
 ```sh
-dotnet new install Avalonia.Templates@12.1.4
-dotnet new avalonia.xplat --help
+dotnet workload install android --version 10.0.402
 ```
 
-Use the cross-platform template's desktop and Android entry projects with shared UI; leave other platforms outside the proof. Add a target-neutral C# metadata/application module accepting an EPUB stream, and a local SQLite catalogue behind its own interface. Both hosts must call the same implementation. The template alone cannot demonstrate this behavior.
+The dependency installer supplied the local Android SDK/JDK used for the build. `adb devices -l` ran successfully but listed no devices.
 
-Build one vertical slice: choose a folder, enumerate EPUBs recursively, read one EPUB's metadata, save a reading-status change and personal note, then recover both after restarting the app. Use synthetic metadata fixtures in Git. Run the user's sample locally without committing its identity, tags, or narrative.
+## Implemented proof slice
 
-| Check | Status and required evidence |
-|---|---|
-| Shared core and SQLite | Not implemented. Exercise extraction through the public application interface for a generic EPUB without AO3 identity and an AO3 extraction case; close/reopen the database and verify the saved status/note. Source-independent identity was accepted on 2026-11-01 in [ADR 0002](../adr/0002-source-independent-work-identity.md). |
-| Pop!_OS 24.04 | Not run. Record the actual display session, launch the desktop app, select a folder, enumerate subfolders, and import an EPUB. |
-| Android 16 | Not built or run. Install the pinned Android workload and required SDK/JDK, build the Android head, then use a real document-tree grant to enumerate and read an EPUB. |
-| Android retained access | Not run. After app restart and device restart, enumerate and read again through the saved grant. Reopening a bookmark object is insufficient. |
-| Windows | Not built or run. Record a separate build/package result; runtime remains unverified until run on Windows. |
+- `TomeRaider.Application` exposes one ordinary Application seam for folder selection/restoration, recursive EPUB enumeration, stream-based extraction, import, and reading-record changes.
+- `TomeRaider.Infrastructure` provides base EPUB metadata extraction, optional AO3 URL/ID enrichment, a physical-folder test adapter, and a file-backed SQLite catalogue.
+- Generic EPUBs without an AO3 link or ID receive a generated internal `Guid` work identity. AO3 metadata is enrichment, not the identity.
+- The shared Avalonia UI is referenced by separate Desktop and Android entry projects.
+- `AvaloniaStorageFileSource` keeps Avalonia storage types outside the Application/Domain layers, uses storage streams rather than raw paths, and saves/restores a folder bookmark through a JSON store.
+- The synthetic test EPUBs are generated in temporary test directories; no private EPUB or identifying metadata is committed.
 
-Capture the resolved package graph, commands, and observed results as the proof progresses. Full collection import, duplicate/version rules, filtering, ratings, synchronization, and a reader remain outside this probe.
+## Validation matrix
+
+| Check | Actual command/evidence | Result |
+|---|---|---|
+| SDK starts locally | `dotnet --info`, `dotnet --list-sdks`, `dotnet --list-runtimes` | Passed with SDK 10.0.114 and runtime 10.0.14. |
+| Shared generic/AO3 import and SQLite reopen | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --no-build` | Passed: 2/2 tests. Both cases use the same Application and SQLite implementation; the status and note were recovered after constructing a new catalogue instance. |
+| Architecture direction | `dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --no-build` | Passed: 4/4 tests. Project references, cycle absence, inner-layer restrictions, forbidden-edge rejection, and empty-selection rejection are checked. |
+| Desktop build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --no-restore` | Passed: 6 projects, 0 errors, 0 warnings. |
+| Pop!_OS display startup | `XDG_SESSION_TYPE=wayland`, `WAYLAND_DISPLAY=wayland-1`, `DISPLAY=:1`, `XDG_CURRENT_DESKTOP=COSMIC`; `dotnet run --project src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --no-build` | Passed native startup for an 8-second run with no Avalonia or CoreCLR exception. The timeout exit 124 was the intentional process stop. The actual folder picker and UI import were not exercised in this automated session. |
+| Desktop workflow seam | Application test using `PhysicalFileSource` over a synthetic folder with recursive enumeration | Passed through the public Application interface; this is not a substitute for native picker evidence. |
+| Android compile | `dotnet build src/TomeRaider.Android/TomeRaider.Android.csproj --no-restore -p:AndroidSdkDirectory=/home/simon/.local/share/tome-raider/android-sdk -p:JavaSdkDirectory=/home/simon/.local/share/tome-raider/jdk` | Passed: 6 projects, 0 errors, 0 warnings. |
+| Android package | `dotnet publish src/TomeRaider.Android/TomeRaider.Android.csproj -c Release --no-restore` with the same SDK/JDK paths | Passed with `RunAOTCompilation=false`; signed APK written under `src/TomeRaider.Android/bin/Release/net10.0-android36.0/publish/`. A default Release AOT attempt failed in the cross-compiler at `System.GC:CallFinalize` (`Method has zero rva`), so the proof APK deliberately keeps AOT disabled until it is validated on-device. |
+| Android picker/read/restart/device restart | `adb devices -l` | Not run: no Android device or emulator is connected. Bookmark restoration, document-tree enumeration, EPUB stream reading, SQLite native loading, and app/device restart behavior remain open evidence. |
+| Windows build/package | `dotnet publish src/TomeRaider.Desktop/TomeRaider.Desktop.csproj -c Release -r win-x64 --self-contained false` | Passed. Windows x64 publish output was produced; Windows runtime behavior was not executed. |
+
+## Remaining gate
+
+The implementation closes the local SDK startup issue and proves the shared managed path, but it does not claim the full target-platform gate is closed. Before treating this proof as complete, run the Android APK on Android 16 with an allowed document-tree grant, verify enumeration and reading after app and device restart, and exercise the Pop!_OS picker/import flow interactively. Keep Windows runtime and packaging claims limited to the published build until a Windows run is available.
+
+Full collection import, duplicate/version rules, filtering, ratings, synchronization, and a reader remain outside this proof.
