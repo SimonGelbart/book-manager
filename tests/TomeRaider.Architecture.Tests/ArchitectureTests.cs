@@ -34,6 +34,28 @@ public sealed class ArchitectureTests
     }
 
     [Test]
+    public async Task ProductionPackageReferencesFollowTheApprovedDirection()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var dependencies = ArchitectureRules.ReadPackageReferences(repositoryRoot);
+        var violations = ArchitectureRules.FindPackageReferenceViolations(dependencies);
+
+        await Assert.That(violations).Count().IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task ADeliberatelyForbiddenFrameworkReferenceIsRejected()
+    {
+        var violations = ArchitectureRules.FindPackageReferenceViolations(
+        [
+            new PackageDependency("TomeRaider.Domain", "Avalonia")
+        ]);
+
+        await Assert.That(violations).Count().IsEqualTo(1);
+        await Assert.That(violations[0]).IsEqualTo("TomeRaider.Domain -> Avalonia");
+    }
+
+    [Test]
     public async Task EmptySelectionsAreRejectedInsteadOfPassingSilently()
     {
         var rejected = false;
