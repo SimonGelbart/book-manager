@@ -32,14 +32,25 @@ public sealed record ImportItemResult(
     SourceFile File,
     ImportedWork? Work,
     EpubMetadata? Metadata,
-    string? Error);
+    string? Error)
+{
+    public bool Succeeded => Work is not null;
+
+    public string DisplayText => Succeeded
+        ? $"{File.DisplayName}: {Work!.Title}"
+        : $"{File.DisplayName}: {Error ?? "Import failed."}";
+}
 
 public sealed record ImportResult(
     SourceFolder? Folder,
     IReadOnlyList<ImportItemResult> Items,
     bool WasCancelled)
 {
-    public bool Succeeded => Items.Any(item => item.Work is not null);
+    public int SuccessCount => Items.Count(item => item.Succeeded);
+
+    public int FailureCount => Items.Count - SuccessCount;
+
+    public bool Succeeded => SuccessCount > 0;
 }
 
 public interface IEpubMetadataExtractor

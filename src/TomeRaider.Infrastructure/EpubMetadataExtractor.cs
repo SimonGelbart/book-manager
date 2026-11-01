@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -10,8 +11,15 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
     private static readonly XNamespace ContainerNamespace = "urn:oasis:names:tc:opendocument:xmlns:container";
     private static readonly XNamespace DublinCoreNamespace = "http://purl.org/dc/elements/1.1/";
     private static readonly XNamespace PackageNamespace = "http://www.idpf.org/2007/opf";
+    private static readonly XNamespace XhtmlNamespace = "http://www.w3.org/1999/xhtml";
     private static readonly Regex Ao3WorkUrlPattern = new(
-        @"https?://(?:www\.)?archiveofourown\.org/(?:works|chapters)/(\d+)",
+        @"https?://(?:www\.)?archiveofourown\.org/works/(\d+)(?:[/?#\s]|$)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex WordCountPattern = new(
+        @"\b(?:word\s+count|words?)\s*:\s*([\d,]+)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex StatusPattern = new(
+        @"\bstatus\s*:\s*(complete|unfinished|in[\s-]?progress|work\s+in\s+progress)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public Task<EpubMetadata> ExtractAsync(
@@ -52,29 +60,38 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
 
         var author = metadata.Element(DublinCoreNamespace + "creator")?.Value.Trim();
         var description = metadata.Element(DublinCoreNamespace + "description")?.Value.Trim();
-        var metadataText = string.Join(
-            "\n",
-            metadata.Descendants()
-                .Select(element => element.Value)
-                .Concat(metadata.DescendantsAndSelf().Attributes().Select(attribute => attribute.Value)));
-        var ao3Match = Ao3WorkUrlPattern.Match(metadataText);
-        var sourceUrl = ao3Match.Success ? ao3Match.Value : null;
-        var ao3WorkId = ao3Match.Success ? ao3Match.Groups[1].Value : null;
+        var packageSourceUrl = metadata.Elements(DublinCoreNamespace + "identifier")
+            .Select(identifier => identifier.Value)
+            .Concat(
+                metadata.Elements(PackageNamespace + "meta")
+                    .Where(meta => IsSourceMetadata(meta))
+                    .Select(meta => (string?)meta.Attribute("content") ?? meta.Value))
+            .Select(FindAo3WorkUrl)
+            .FirstOrDefault(url => url is not null);
+        var preface = LoadFirstSpineDocument(archive, package, packagePath, cancellationToken);
+        var prefaceSourceUrl = FindAo3WorkUrlFromPreface(preface);
+        var sourceUrl = prefaceSourceUrl ?? packageSourceUrl;
+        var ao3WorkId = FindAo3WorkId(sourceUrl);
         var tags = metadata
             .Elements(DublinCoreNamespace + "subject")
             .Select(subject => subject.Value.Trim())
             .Where(subject => !string.IsNullOrWhiteSpace(subject))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        var wordCount = FindIntegerMeta(metadata, "word-count", "ao3:word-count", "words");
-        var status = FindMeta(metadata, "status", "ao3:status", "completion-status");
+        var prefaceText = GetPrefaceText(preface);
+        var wordCount = FindIntegerMeta(metadata, "word-count", "ao3:word-count", "words")
+            ?? FindPrefaceWordCount(prefaceText);
+        var status = FindMeta(metadata, "status", "ao3:status", "completion-status")
+            ?? FindPrefaceStatus(prefaceText);
         bool? isComplete = null;
         if (status is not null)
         {
-            isComplete = status.Equals("complete", StringComparison.OrdinalIgnoreCase)
+            var normalizedStatus = status.Replace(' ', '-').ToLowerInvariant();
+            isComplete = normalizedStatus.Equals("complete", StringComparison.Ordinal)
                 ? true
-                : status.Equals("unfinished", StringComparison.OrdinalIgnoreCase)
-                    || status.Equals("in-progress", StringComparison.OrdinalIgnoreCase)
+                : normalizedStatus.Equals("unfinished", StringComparison.Ordinal)
+                    || normalizedStatus.Equals("in-progress", StringComparison.Ordinal)
+                    || normalizedStatus.Equals("work-in-progress", StringComparison.Ordinal)
                     ? false
                     : null;
         }
@@ -95,6 +112,142 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
         using var stream = entry.Open();
         cancellationToken.ThrowIfCancellationRequested();
         return XDocument.Load(stream, LoadOptions.None);
+    }
+
+    private static XDocument? LoadFirstSpineDocument(
+        ZipArchive archive,
+        XDocument package,
+        string packagePath,
+        CancellationToken cancellationToken)
+    {
+        var firstId = package
+            .Root?
+            .Element(PackageNamespace + "spine")?
+            .Elements(PackageNamespace + "itemref")
+            .Select(itemref => (string?)itemref.Attribute("idref"))
+            .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
+        if (firstId is null)
+        {
+            return null;
+        }
+
+        var href = package
+            .Root?
+            .Element(PackageNamespace + "manifest")?
+            .Elements(PackageNamespace + "item")
+            .Where(item => string.Equals((string?)item.Attribute("id"), firstId, StringComparison.Ordinal))
+            .Select(item => (string?)item.Attribute("href"))
+            .FirstOrDefault(href => !string.IsNullOrWhiteSpace(href));
+        if (href is null)
+        {
+            return null;
+        }
+
+        var entry = archive.GetEntry(ResolveArchivePath(packagePath, href));
+        return entry is null ? null : LoadXml(entry, cancellationToken);
+    }
+
+    private static string ResolveArchivePath(string packagePath, string href)
+    {
+        var cleanHref = Uri.UnescapeDataString(href.Split(['#', '?'], 2)[0]).Replace('\\', '/');
+        var packageDirectory = packagePath.Replace('\\', '/');
+        var separator = packageDirectory.LastIndexOf('/');
+        packageDirectory = separator < 0 ? string.Empty : packageDirectory[..separator];
+        var parts = $"{packageDirectory}/{cleanHref}"
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var resolved = new List<string>();
+        foreach (var part in parts)
+        {
+            if (part == ".")
+            {
+                continue;
+            }
+
+            if (part == ".." && resolved.Count > 0)
+            {
+                resolved.RemoveAt(resolved.Count - 1);
+                continue;
+            }
+
+            resolved.Add(part);
+        }
+
+        return string.Join('/', resolved);
+    }
+
+    private static bool IsSourceMetadata(XElement meta)
+    {
+        var name = (string?)meta.Attribute("name") ?? (string?)meta.Attribute("property");
+        return name is not null
+            && new[] { "source", "source-url", "canonical", "ao3:work-url" }
+                .Contains(name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? FindAo3WorkUrlFromPreface(XDocument? preface)
+    {
+        var message = preface?
+            .Descendants(XhtmlNamespace + "p")
+            .Where(paragraph => paragraph.Attributes("class").Any(attribute =>
+                attribute.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Contains("message", StringComparer.OrdinalIgnoreCase)))
+            .FirstOrDefault();
+        return message?
+            .Descendants(XhtmlNamespace + "a")
+            .Select(anchor => (string?)anchor.Attribute("href"))
+            .Select(FindAo3WorkUrl)
+            .FirstOrDefault(url => url is not null);
+    }
+
+    private static string? GetPrefaceText(XDocument? preface)
+    {
+        var prefaceElement = preface?
+            .Descendants(XhtmlNamespace + "div")
+            .FirstOrDefault(element => string.Equals((string?)element.Attribute("id"), "preface", StringComparison.Ordinal));
+        var textSource = prefaceElement ?? preface?.Root;
+        return textSource is null
+            ? null
+            : string.Join(
+                " ",
+                textSource
+                    .DescendantNodes()
+                    .OfType<XText>()
+                    .Select(node => node.Value.Trim())
+                    .Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static string? FindAo3WorkUrl(string? value)
+    {
+        var match = value is null ? null : Ao3WorkUrlPattern.Match(value);
+        return match?.Success == true ? match.Value : null;
+    }
+
+    private static string? FindAo3WorkId(string? sourceUrl)
+    {
+        var match = sourceUrl is null ? null : Ao3WorkUrlPattern.Match(sourceUrl);
+        return match?.Success == true ? match.Groups[1].Value : null;
+    }
+
+    private static int? FindPrefaceWordCount(string? prefaceText)
+    {
+        var match = prefaceText is null ? null : WordCountPattern.Match(prefaceText);
+        if (match?.Success != true)
+        {
+            return null;
+        }
+
+        return int.TryParse(
+            match.Groups[1].Value.Replace(",", string.Empty, StringComparison.Ordinal),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var wordCount)
+            ? wordCount
+            : null;
+    }
+
+    private static string? FindPrefaceStatus(string? prefaceText)
+    {
+        var match = prefaceText is null ? null : StatusPattern.Match(prefaceText);
+        return match?.Success == true ? match.Groups[1].Value : null;
     }
 
     private static string? FindMeta(XElement metadata, params string[] names)

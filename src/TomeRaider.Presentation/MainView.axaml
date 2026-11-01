@@ -20,10 +20,9 @@
           <DataTemplate x:DataType="app:ImportItemResult">
             <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,0,0,6">
               <StackPanel Spacing="4">
-                <TextBlock FontWeight="Bold" Text="{Binding Work.Title}" />
+                <TextBlock FontWeight="Bold" Text="{Binding DisplayText}" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding Work.Author}" />
                 <TextBlock Text="{Binding Metadata.Ao3WorkId, StringFormat='AO3 work: {0}'}" />
-                <TextBlock Text="{Binding File.DisplayName}" />
               </StackPanel>
             </Border>
           </DataTemplate>

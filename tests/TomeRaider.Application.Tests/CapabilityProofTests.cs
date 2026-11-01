@@ -1,6 +1,7 @@
 using TomeRaider.Application;
 using TomeRaider.Domain;
 using TomeRaider.Infrastructure;
+using TomeRaider.Presentation;
 using TUnit.Assertions;
 using TUnit.Core;
 
@@ -77,6 +78,190 @@ public sealed class CapabilityProofTests
         }
     }
 
+    [Test]
+    public async Task DescriptionLinksDoNotCreateAo3IdentityCollisions()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(
+                workspace,
+                "generic.epub",
+                "A Generic Work",
+                "A. Reader",
+                description: "Recommendation: https://archiveofourown.org/works/12345");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var generic = firstImport.Items.Single(item => item.Metadata?.Title == "A Generic Work").Work!;
+            await application.SaveReadingRecordAsync(generic.Id, ReadingStatus.Reading, "Keep this note.");
+
+            SyntheticEpub.Create(
+                workspace,
+                "actual.epub",
+                "The Actual AO3 Work",
+                "A. Writer",
+                "https://archiveofourown.org/works/12345",
+                packageSourceUrl: "https://archiveofourown.org/works/12345");
+            var secondImport = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var actual = secondImport.Items.Single(item => item.Metadata?.Title == "The Actual AO3 Work");
+
+            await Assert.That(firstImport.Items.Single().Metadata!.Ao3WorkId).IsNull();
+            await Assert.That(actual.Metadata!.Ao3WorkId).IsEqualTo("12345");
+            await Assert.That(actual.Work!.Id).IsNotEqualTo(generic.Id);
+            var recovered = await application.GetReadingRecordAsync(generic.Id);
+            await Assert.That(recovered!.PersonalNote).IsEqualTo("Keep this note.");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ChapterLinksDoNotBecomeWorkIdentityOrMergeWithWorkLinks()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(
+                workspace,
+                "chapter.epub",
+                "A Chapter Download",
+                "A. Writer",
+                "https://archiveofourown.org/chapters/12345",
+                packageSourceUrl: "https://archiveofourown.org/chapters/12345");
+            SyntheticEpub.Create(
+                workspace,
+                "work.epub",
+                "The Parent Work",
+                "A. Writer",
+                "https://archiveofourown.org/works/12345",
+                packageSourceUrl: "https://archiveofourown.org/works/12345");
+
+            var result = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
+                .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var chapter = result.Items.Single(item => item.Metadata?.Title == "A Chapter Download");
+            var work = result.Items.Single(item => item.Metadata?.Title == "The Parent Work");
+
+            await Assert.That(chapter.Metadata!.Ao3WorkId).IsNull();
+            await Assert.That(chapter.Metadata.SourceUrl).IsNull();
+            await Assert.That(work.Metadata!.Ao3WorkId).IsEqualTo("12345");
+            await Assert.That(chapter.Work!.Id).IsNotEqualTo(work.Work!.Id);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ReportsAllFailedImportsWithFileAndErrorDetails()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            File.WriteAllText(Path.Combine(workspace, "broken.epub"), "not an EPUB");
+
+            var result = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
+                .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+
+            await Assert.That(result.Succeeded).IsFalse();
+            await Assert.That(result.SuccessCount).IsEqualTo(0);
+            await Assert.That(result.FailureCount).IsEqualTo(1);
+            await Assert.That(result.Items[0].File.DisplayName).IsEqualTo("broken.epub");
+            await Assert.That(result.Items[0].Error).IsNotNull();
+            await Assert.That(result.Items[0].DisplayText).Contains("broken.epub");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ReportsSuccessfulAndFailedImportsTogether()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "valid.epub", "A Valid Work", "A. Writer");
+            File.WriteAllText(Path.Combine(workspace, "broken.epub"), "not an EPUB");
+
+            var result = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
+                .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+
+            await Assert.That(result.SuccessCount).IsEqualTo(1);
+            await Assert.That(result.FailureCount).IsEqualTo(1);
+            await Assert.That(result.Items).Count().IsEqualTo(2);
+            await Assert.That(result.Items.Single(item => item.Work is null).DisplayText).Contains("broken.epub");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ViewModelPreservesPartialFailuresAndReportsTheirCount()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var validPath = SyntheticEpub.Create(workspace, "valid.epub", "A Valid Work", "A. Writer");
+            var invalidPath = Path.Combine(workspace, "broken.epub");
+            File.WriteAllText(invalidPath, "not an EPUB");
+            var source = new FixedFolderFileSource(
+                new SourceFolder(workspace, "Synthetic folder"),
+                [
+                    new SourceFile(validPath, "valid.epub"),
+                    new SourceFile(invalidPath, "broken.epub")
+                ]);
+            var viewModel = new MainViewModel(
+                new CatalogueSession(
+                    CreateApplication(Path.Combine(workspace, "catalogue.sqlite")),
+                    source));
+
+            await viewModel.SelectFolderAndImportAsync();
+
+            await Assert.That(viewModel.Items).Count().IsEqualTo(2);
+            await Assert.That(viewModel.Items.Single(item => item.Work is null).DisplayText).Contains("broken.epub");
+            await Assert.That(viewModel.StatusMessage).Contains("1 failed");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ViewModelReportsAllFailedImportsInsteadOfAnEmptyFolder()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var invalidPath = Path.Combine(workspace, "broken.epub");
+            File.WriteAllText(invalidPath, "not an EPUB");
+            var source = new FixedFolderFileSource(
+                new SourceFolder(workspace, "Synthetic folder"),
+                [new SourceFile(invalidPath, "broken.epub")]);
+            var viewModel = new MainViewModel(
+                new CatalogueSession(
+                    CreateApplication(Path.Combine(workspace, "catalogue.sqlite")),
+                    source));
+
+            await viewModel.SelectFolderAndImportAsync();
+
+            await Assert.That(viewModel.Items).Count().IsEqualTo(1);
+            await Assert.That(viewModel.Items[0].DisplayText).Contains("broken.epub");
+            await Assert.That(viewModel.StatusMessage).Contains("Imported 0 EPUB file(s); 1 failed");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
     private static CatalogueApplication CreateApplication(string databasePath)
     {
         return new CatalogueApplication(
@@ -122,6 +307,39 @@ public sealed class CapabilityProofTests
         public Task<Stream> OpenReadAsync(SourceFile file, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class FixedFolderFileSource(
+        SourceFolder folder,
+        IReadOnlyList<SourceFile> files) : IFileSource
+    {
+        public Task<SourceFolder?> SelectFolderAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<SourceFolder?>(folder);
+        }
+
+        public Task<SourceFolder?> RestoreFolderAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<SourceFolder?>(folder);
+        }
+
+        public async IAsyncEnumerable<SourceFile> EnumerateEpubsAsync(
+            SourceFolder sourceFolder,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var file in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return file;
+                await Task.Yield();
+            }
+        }
+
+        public Task<Stream> OpenReadAsync(SourceFile file, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<Stream>(File.OpenRead(file.Reference));
         }
     }
 }

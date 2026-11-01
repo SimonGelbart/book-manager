@@ -64,15 +64,24 @@ public sealed partial class MainViewModel : ObservableObject
         {
             var result = await import();
             Items.Clear();
-            foreach (var item in result.Items.Where(item => item.Work is not null))
+            foreach (var item in result.Items)
             {
                 Items.Add(item);
             }
 
-            SelectedItem = Items.FirstOrDefault();
-            StatusMessage = result.WasCancelled
-                ? "No folder was selected or no saved folder is available."
-                : $"Imported {Items.Count} EPUB file(s) from {result.Folder?.DisplayName}.";
+            SelectedItem = Items.FirstOrDefault(item => item.Succeeded);
+            if (result.WasCancelled)
+            {
+                StatusMessage = "No folder was selected or no saved folder is available.";
+            }
+            else if (result.FailureCount == 0)
+            {
+                StatusMessage = $"Imported {result.SuccessCount} EPUB file(s) from {result.Folder?.DisplayName}.";
+            }
+            else
+            {
+                StatusMessage = $"Imported {result.SuccessCount} EPUB file(s); {result.FailureCount} failed from {result.Folder?.DisplayName}.";
+            }
         }
         catch (Exception exception)
         {
