@@ -1,10 +1,42 @@
 # Cross-platform architecture proposal
 
-Status: architecture outline, updated 2026-11-01. The user chose Avalonia and .NET/C# after comparing the runtime options, then included basic non-AO3 EPUB support. [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md) records the runtime direction and [ADR 0002](../adr/0002-source-independent-work-identity.md) records source-independent work identity; other module details below remain proposed and the platform capability proof is still open.
+Status: architecture outline, updated 2026-11-01. The user chose Avalonia and .NET/C#, basic non-AO3 EPUB support, and Clean Architecture without CQRS. [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md) records the runtime direction, [ADR 0002](../adr/0002-source-independent-work-identity.md) records source-independent work identity, and [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md) records dependency rules and repository layout. Concrete project names and the platform capability proof remain open.
 
 ## Goal
 
 Build the Linux MVP while keeping Windows compatibility and a later Android app practical. Reuse collection-management and reading logic, with deliberate desktop and phone layouts. Keep platform integrations replaceable through small interfaces.
+
+## Clean Architecture dependency rules
+
+Code dependencies point inward. Runtime calls can go outward through Application-owned interfaces that outer adapters implement.
+
+| Layer | Responsibility and permitted production dependencies |
+|---|---|
+| Domain | Work, version, copy, and personal-reading concepts and rules; independent of other production layers and UI/persistence/platform frameworks. |
+| Application | Cohesive use-case modules and their input/output contracts; depends on Domain and owns the interfaces it needs from outer adapters. |
+| Infrastructure | SQLite catalogue and EPUB extraction implementations, including optional AO3 enrichment; references Application and Domain to implement their contracts. |
+| Presentation | Avalonia views and presentation logic; calls Application interfaces and uses inner data contracts without referencing concrete catalogue implementations. |
+| Hosts | Desktop and Android startup plus platform-specific adapters; references the required outer implementations and Application to compose the running app. |
+
+```mermaid
+flowchart TD
+    HOST["Hosts and composition"] --> UI["Presentation"]
+    HOST --> INFRA["Infrastructure"]
+    HOST --> APP["Application"]
+    UI --> APP
+    INFRA --> APP
+    APP --> DOMAIN["Domain"]
+```
+
+The diagram shows the inward direction of code dependencies. Outer implementations may also reference Domain where needed. Host references to concrete adapters are for composition, not a place to implement collection or reading rules.
+
+Expose ordinary methods for catalogue lookups and changes through cohesive Application modules. Use a shared catalogue design and persistence model. CQRS-style command/query handler pipelines and separate read/write stores are outside the chosen architecture. Input and result models remain appropriate where they keep the Application interface clear.
+
+## Repository layout
+
+The owner requires **`src/` for production projects** and **`tests/` for test projects and committed synthetic fixtures**. Runtime-proof implementation also belongs under `src/`, with its automated checks and fixtures under `tests/`. Planning, specifications, research, and ADRs remain under `docs/`.
+
+Domain, Application, Infrastructure, Presentation, and platform-host responsibilities guide the eventual project layout; concrete project names and assembly counts are not fixed by this outline. Keep the interfaces small and place them at real extraction, persistence, and platform seams.
 
 ## Proposed modules
 
@@ -18,7 +50,7 @@ Build the Linux MVP while keeping Windows compatibility and a later Android app 
 | Platform adapters | Supply file/folder selection, enumeration, readable EPUB data, access grants, and the desktop action to open a selected EPUB in the operating system's associated reader. |
 | Runner | Start the application and wire the chosen adapters to the shared modules. |
 
-The runner should contain integration and startup logic. Collection and reading rules remain shared. An interface alone cannot make a desktop-only runtime or dependency work on Android; the shared implementation must also be supported there.
+The runner is the host composition root and contains integration and startup logic. Collection and reading rules remain in the shared inner layers. EPUB extraction and catalogue persistence are Infrastructure implementations of Application-owned interfaces. An interface alone cannot make a desktop-only runtime or dependency work on Android; the shared implementation must also be supported there.
 
 ## Runtime call flow
 

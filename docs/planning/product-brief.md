@@ -139,6 +139,8 @@ The user proposed separating the frontend from the runner with adapters, and emp
 
 Use Avalonia with a shared .NET/C# application core, with separate desktop and Android entry projects. Keep platform file access behind adapters and keep UI/platform types outside the shared collection and reading logic. This is the user's selected direction; successful operation on the target devices has not yet been demonstrated.
 
+The owner additionally requires **Clean Architecture without CQRS**, with production projects under repository-root **`src/`** and test projects/fixtures under **`tests/`**. Application use cases use ordinary methods for reads and changes; dependency rules and composition responsibilities are recorded in [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md).
+
 See [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-core.md), the [architecture proposal](../architecture/cross-platform-proposal.md), and the [runtime research](../research/runtime-fit-existing-skills.md). The small import-and-persistence proof remains the next technical gate. Package versions, SQLite, and packaging are validation candidates rather than separately accepted production decisions.
 
 ## Collection browsing and discovery

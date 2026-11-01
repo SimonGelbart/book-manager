@@ -18,7 +18,7 @@ The installer, downloaded SDK, caches, and private EPUB remain outside the Git r
 
 ## Next executable slice
 
-Use a development environment where `dotnet --info` and `dotnet --version` complete successfully. Confirm the chosen SDK before generating a probe under `prototypes/avalonia-dotnet-proof/`:
+Use a development environment where `dotnet --info` and `dotnet --version` complete successfully. Following the repository layout accepted in [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md), keep probe implementation under `src/` and any automated tests and committed fixtures under `tests/`. Confirm the chosen SDK before generating projects:
 
 ```sh
 dotnet new install Avalonia.Templates@12.1.4

@@ -99,6 +99,8 @@ These are observable product outcomes, independent of the internal class or data
 
 - Follow ADR 0001: Avalonia presentation and a shared .NET/C# implementation. The initial desktop runtime target is Pop!_OS 24.04. Windows compatibility is preferred; Android collection management is a later product release, with an early capability proof to validate runtime and file access.
 - Follow ADR 0002: internal Work identity, optional external source identifiers, and optional AO3 enrichment. Treat a package identifier, source identifier, downloaded version, and local file location as distinct concepts. Source identifiers are evidence for matching, not a requirement for a work to exist.
+- Follow ADR 0003: Clean Architecture without CQRS. Domain is independent; Application depends on Domain and owns the adapter interfaces; Infrastructure and Presentation depend inward, and hosts compose the concrete implementations. Use ordinary Application method calls for lookups and changes, with one catalogue design and persistence model rather than command/query handler pipelines or split read/write stores.
+- Use the owner-required repository-root `src/` directory for production projects and runtime-proof code, and `tests/` for automated test projects, helpers, and committed synthetic fixtures. Concrete project names and the testing framework are still to be selected.
 - Separate presentation, application coordination, domain behavior, EPUB extraction, catalogue persistence, platform integrations, and runner composition. The shared collection and reading implementation must not require Avalonia or operating-system types.
 - Keep one application-facing boundary for scan/import, catalogue queries and details, resolving import review, personal-record changes, marking versions read, choosing a metadata source, and requesting external-reader launch. Adapter contracts supply source references, enumeration, readable EPUB data, and platform outcomes.
 - Keep file locations opaque to the shared core. Both desktop files and Android permission-granted documents must feed the same extraction/application implementation. Do not require a desktop-only sidecar for the phone.
@@ -136,7 +138,9 @@ These gates refine implementation readiness without reopening the agreed product
 
 Test externally observable behavior through the **shared catalogue application interface**, the highest boundary common to the desktop and future phone hosts. There is no existing implementation or test framework to preserve; this proposes the new public boundary before tests are written.
 
-Supply synthetic EPUB streams and source references through the real adapter contract, exercise application requests, and assert returned collection/query state and persisted results. Use a temporary real local database for persistence behavior and reopen the application service/catalogue to verify durability. Keep UI widget types, SQL statements, parser helpers, private methods, and internal call sequences out of behavior assertions.
+Supply synthetic EPUB streams and source references through the real adapter contract, exercise application requests, and assert returned collection/query state and persisted results. Use a temporary real local database for persistence behavior and reopen the Application module and catalogue to verify durability. Keep UI widget types, SQL statements, parser helpers, private methods, and internal call sequences out of behavior assertions.
+
+This proposal is compatible with the accepted Clean Architecture: the test composition supplies real Infrastructure adapters to Application-owned interfaces. Application itself does not reference Infrastructure, and the tests do not depend on CQRS handlers. The owner has not yet confirmed the proposed primary testing interface or selected a testing framework.
 
 Use controlled source-access and reader-launch outcomes at the platform boundary for application tests. These can verify which selected copy was requested and how a failure is surfaced; they cannot establish actual operating-system launch or permission behavior.
 
@@ -177,6 +181,7 @@ After that check, break the specification into dependent implementation tasks, k
 - [Domain glossary](../../CONTEXT.md)
 - [ADR 0001: Avalonia and shared .NET core](../adr/0001-avalonia-and-shared-dotnet-core.md)
 - [ADR 0002: source-independent identity](../adr/0002-source-independent-work-identity.md)
+- [ADR 0003: Clean Architecture without CQRS](../adr/0003-clean-architecture-without-cqrs.md)
 - [Architecture outline](../architecture/cross-platform-proposal.md)
 - [EPUB specimen findings and limits](../research/epub-metadata-validation.md)
 - [Candidate toolchain](../research/validation-toolchain.md)

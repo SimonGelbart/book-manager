@@ -10,4 +10,6 @@ The [product brief](docs/planning/product-brief.md) records the needs discovered
 
 The MVP product scope is settled. The [specification draft](docs/specs/mvp-epub-catalogue.md) collects user stories, acceptance examples, implementation gates, and the proposed testing boundary for review.
 
+The owner chose **Clean Architecture without CQRS**. Production projects belong under [src](src/README.md), and automated tests and fixtures under [tests](tests/README.md); [ADR 0003](docs/adr/0003-clean-architecture-without-cqrs.md) records the dependency and layout rules.
+
 The selected direction is Avalonia with a shared .NET/C# core; [ADR 0001](docs/adr/0001-avalonia-and-shared-dotnet-core.md) records why. Target-platform validation is still pending; see the [capability proof record](docs/research/avalonia-proof-execution.md).
