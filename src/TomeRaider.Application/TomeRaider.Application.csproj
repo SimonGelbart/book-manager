@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>TomeRaider.Application</RootNamespace>
+    <AssemblyName>TomeRaider.Application</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TomeRaider.Domain/TomeRaider.Domain.csproj" />
+  </ItemGroup>
+</Project>

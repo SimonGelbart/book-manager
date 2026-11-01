@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>TomeRaider.Architecture.Tests</RootNamespace>
+    <AssemblyName>TomeRaider.Architecture.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/TomeRaider.Domain/TomeRaider.Domain.csproj" />
+    <ProjectReference Include="../../src/TomeRaider.Application/TomeRaider.Application.csproj" />
+    <ProjectReference Include="../../src/TomeRaider.Infrastructure/TomeRaider.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/TomeRaider.Platform.Storage/TomeRaider.Platform.Storage.csproj" />
+    <ProjectReference Include="../../src/TomeRaider.Presentation/TomeRaider.Presentation.csproj" />
+    <ProjectReference Include="../../src/TomeRaider.Desktop/TomeRaider.Desktop.csproj" />
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>TomeRaider.Infrastructure</RootNamespace>
+    <AssemblyName>TomeRaider.Infrastructure</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TomeRaider.Application/TomeRaider.Application.csproj" />
+    <ProjectReference Include="../TomeRaider.Domain/TomeRaider.Domain.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
+  </ItemGroup>
+</Project>

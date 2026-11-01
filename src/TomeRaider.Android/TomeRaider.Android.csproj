@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-android36.0</TargetFramework>
+    <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
+    <ApplicationId>com.simon.gelbart.tomeraider</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <RootNamespace>TomeRaider.Android</RootNamespace>
+    <AssemblyName>TomeRaider.Android</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TomeRaider.Application/TomeRaider.Application.csproj" />
+    <ProjectReference Include="../TomeRaider.Infrastructure/TomeRaider.Infrastructure.csproj" />
+    <ProjectReference Include="../TomeRaider.Platform.Storage/TomeRaider.Platform.Storage.csproj" />
+    <ProjectReference Include="../TomeRaider.Presentation/TomeRaider.Presentation.csproj" />
+    <PackageReference Include="Avalonia.Android" />
+    <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" />
+  </ItemGroup>
+</Project>

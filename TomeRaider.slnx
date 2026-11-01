@@ -1,0 +1,11 @@
+<Solution>
+  <Project Path="src/TomeRaider.Domain/TomeRaider.Domain.csproj" />
+  <Project Path="src/TomeRaider.Application/TomeRaider.Application.csproj" />
+  <Project Path="src/TomeRaider.Infrastructure/TomeRaider.Infrastructure.csproj" />
+  <Project Path="src/TomeRaider.Platform.Storage/TomeRaider.Platform.Storage.csproj" />
+  <Project Path="src/TomeRaider.Presentation/TomeRaider.Presentation.csproj" />
+  <Project Path="src/TomeRaider.Desktop/TomeRaider.Desktop.csproj" />
+  <Project Path="src/TomeRaider.Android/TomeRaider.Android.csproj" />
+  <Project Path="tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj" />
+  <Project Path="tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj" />
+</Solution>

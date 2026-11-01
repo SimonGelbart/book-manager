@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "dgSpecHash": "dMy33zAtZTg=",
+  "success": true,
+  "projectFilePath": "/home/simon/repos/coding-space/book-manager/src/TomeRaider.Infrastructure/TomeRaider.Infrastructure.csproj",
+  "expectedPackageFiles": [
+    "/home/simon/.nuget/packages/microsoft.data.sqlite/10.0.14/microsoft.data.sqlite.10.0.14.nupkg.sha512",
+    "/home/simon/.nuget/packages/microsoft.data.sqlite.core/10.0.14/microsoft.data.sqlite.core.10.0.14.nupkg.sha512",
+    "/home/simon/.nuget/packages/sqlitepclraw.bundle_e_sqlite3/2.1.14/sqlitepclraw.bundle_e_sqlite3.2.1.14.nupkg.sha512",
+    "/home/simon/.nuget/packages/sqlitepclraw.core/2.1.14/sqlitepclraw.core.2.1.14.nupkg.sha512",
+    "/home/simon/.nuget/packages/sqlitepclraw.lib.e_sqlite3/2.1.14/sqlitepclraw.lib.e_sqlite3.2.1.14.nupkg.sha512",
+    "/home/simon/.nuget/packages/sqlitepclraw.provider.e_sqlite3/2.1.14/sqlitepclraw.provider.e_sqlite3.2.1.14.nupkg.sha512"
+  ],
+  "logs": []
+}
