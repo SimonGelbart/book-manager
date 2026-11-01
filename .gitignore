@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+.idea/
+.vs/
+*.user
+*.suo
+
+# Android build output and local tool state
+*.apk
+*.aab
+*.keystore
+*.jks
