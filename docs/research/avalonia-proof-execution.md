@@ -4,7 +4,7 @@ Date: 2026-11-01. Direction: [ADR 0001](../adr/0001-avalonia-and-shared-dotnet-c
 
 ## Current result
 
-The selected .NET/Avalonia route starts and builds in the owner's local Pop!_OS environment. The shared import and persistence workflow is implemented and passes its executable TUnit and architecture checks. Desktop startup and cross-target compilation are verified; native folder picking, Android execution, retained grants, and Windows runtime behavior remain explicitly unverified.
+The selected .NET/Avalonia route starts and builds in the owner's local Pop!_OS environment. The shared import and persistence workflow is implemented and passes its executable TUnit and architecture checks. Desktop compilation is verified; this review follow-up could not repeat the Android compile because the current workspace has no Android SDK directory. Native folder picking, Android execution, retained grants, and Windows runtime behavior remain explicitly unverified.
 
 The earlier CoreCLR startup failure remains an observation from a separate agent workspace. It was not reproduced here: the system SDK starts normally.
 
@@ -63,6 +63,18 @@ The dependency installer supplied the local Android SDK/JDK used for the build. 
 | Android package | `dotnet publish src/TomeRaider.Android/TomeRaider.Android.csproj -c Release --no-restore` with the same SDK/JDK paths | Passed with `RunAOTCompilation=false`; signed APK written under `src/TomeRaider.Android/bin/Release/net10.0-android36.0/publish/`. A default Release AOT attempt failed in the cross-compiler at `System.GC:CallFinalize` (`Method has zero rva`), so the proof APK deliberately keeps AOT disabled until it is validated on-device. |
 | Android picker/read/restart/device restart | `adb devices -l` | Not run: no Android device or emulator is connected. Bookmark restoration, document-tree enumeration, EPUB stream reading, SQLite native loading, and app/device restart behavior remain open evidence. |
 | Windows build/package | `dotnet publish src/TomeRaider.Desktop/TomeRaider.Desktop.csproj -c Release -r win-x64 --self-contained false` | Passed. Windows x64 publish output was produced; Windows runtime behavior was not executed. |
+
+## Review follow-up validation
+
+The review fixes were revalidated on 2026-11-01 in the requested Pop!_OS 24.04 workspace with SDK 10.0.114:
+
+| Check | Actual command/evidence | Result |
+|---|---|---|
+| Locked solution restore | `dotnet restore TomeRaider.slnx --locked-mode` | Passed for all nine projects. |
+| Application and presentation regressions | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --no-restore` | Passed: 8/8 tests, 0 failed, 0 skipped. Includes documented AO3 preface extraction, unrelated-description and chapter-link identity isolation, and all-failed/partial-failure presentation outcomes. |
+| Architecture regressions | `dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --no-restore` | Passed: 7/7 tests, 0 failed, 0 skipped. Includes forbidden package/framework dependency rejection. |
+| Desktop build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --no-restore` | Passed: 0 warnings, 0 errors. |
+| Android build in this workspace | `dotnet build src/TomeRaider.Android/TomeRaider.Android.csproj --no-restore` | Blocked before compilation with XA5300: no Android SDK directory was found. |
 
 ## Remaining gate
 
