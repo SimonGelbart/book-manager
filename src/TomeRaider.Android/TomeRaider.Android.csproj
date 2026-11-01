@@ -8,6 +8,8 @@
     <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <!-- Keep the proof APK on the managed runtime until Android AOT is validated on-device. -->
+    <RunAOTCompilation>false</RunAOTCompilation>
     <RootNamespace>TomeRaider.Android</RootNamespace>
     <AssemblyName>TomeRaider.Android</AssemblyName>
   </PropertyGroup>

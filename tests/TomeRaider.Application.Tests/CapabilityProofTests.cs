@@ -15,8 +15,10 @@ public sealed class CapabilityProofTests
         try
         {
             SyntheticEpub.Create(workspace, "generic.epub", "A Generic Work", "A. Reader");
+            var nestedWorkspace = Path.Combine(workspace, "nested");
+            Directory.CreateDirectory(nestedWorkspace);
             SyntheticEpub.Create(
-                workspace,
+                nestedWorkspace,
                 "ao3.epub",
                 "An AO3 Work",
                 "A. Writer",
