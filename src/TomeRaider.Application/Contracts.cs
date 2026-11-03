@@ -56,6 +56,25 @@ public sealed record ImportedWork(
     public string? FileReference { get; init; }
 }
 
+public sealed record CatalogueImportResult(
+    ImportedWork? Work,
+    ImportReview? Review);
+
+public sealed record ImportReviewCandidate(
+    Guid WorkId,
+    string Title,
+    string? Author,
+    ReadingStatus ReadingStatus,
+    string? PersonalNote,
+    int CopyCount);
+
+public sealed record ImportReview(
+    Guid Id,
+    SourceFile File,
+    EpubMetadata Metadata,
+    string Reason,
+    IReadOnlyList<ImportReviewCandidate> Candidates);
+
 public sealed record CatalogueWorkSummary(
     Guid Id,
     string Title,
@@ -94,12 +113,17 @@ public sealed record ImportItemResult(
     SourceFile File,
     ImportedWork? Work,
     EpubMetadata? Metadata,
-    string? Error)
+    string? Error,
+    ImportReview? Review = null)
 {
     public bool Succeeded => Work is not null;
 
+    public bool NeedsReview => Review is not null;
+
     public string DisplayText => Succeeded
         ? $"{File.DisplayName}: {Work!.Title}"
+        : NeedsReview
+            ? $"{File.DisplayName}: Needs review"
         : $"{File.DisplayName}: {Error ?? "Import failed."}";
 }
 
@@ -113,6 +137,8 @@ public sealed record ImportResult(
 
     public int FailureCount => Items.Count - SuccessCount;
 
+    public int ReviewCount => Items.Count(item => item.NeedsReview);
+
     public bool Succeeded => SuccessCount > 0;
 }
 
@@ -123,9 +149,21 @@ public interface IEpubMetadataExtractor
 
 public interface IWorkCatalogue
 {
-    Task<ImportedWork> ImportAsync(
+    Task<CatalogueImportResult> ImportAsync(
         EpubMetadata metadata,
         SourceFile sourceFile,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ImportReview>> GetImportReviewsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<ImportedWork> ResolveImportReviewAsNewWorkAsync(
+        Guid reviewId,
+        CancellationToken cancellationToken = default);
+
+    Task<ImportedWork> ResolveImportReviewToExistingWorkAsync(
+        Guid reviewId,
+        Guid workId,
         CancellationToken cancellationToken = default);
 
     Task SaveReadingRecordAsync(

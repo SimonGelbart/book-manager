@@ -550,7 +550,7 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
-    public async Task KeepsSameAo3IdentityOnSeparateInternalWorksUntilAssociation()
+    public async Task AssociatesCompatibleAo3CopiesWithExistingWork()
     {
         var workspace = CreateWorkspace();
         try
@@ -563,11 +563,13 @@ public sealed class CapabilityProofTests
             var result = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var importedWorks = result.Items.Select(item => item.Work!).ToArray();
             var works = await application.GetWorksAsync();
+            var details = await application.GetWorkDetailsAsync(importedWorks[0].Id);
 
             await Assert.That(importedWorks).Count().IsEqualTo(2);
-            await Assert.That(importedWorks[0].Id).IsNotEqualTo(importedWorks[1].Id);
-            await Assert.That(works).Count().IsEqualTo(2);
-            await Assert.That(works.All(work => work.CopyCount == 1)).IsTrue();
+            await Assert.That(importedWorks[0].Id).IsEqualTo(importedWorks[1].Id);
+            await Assert.That(importedWorks.Count(work => work.WasCreated)).IsEqualTo(1);
+            await Assert.That(works).Count().IsEqualTo(1);
+            await Assert.That(details!.Copies).Count().IsEqualTo(2);
         }
         finally
         {

@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.Text.Json;
 using TomeRaider.Application;
 using TomeRaider.Domain;
 
@@ -26,7 +27,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         Initialize();
     }
 
-    public async Task<ImportedWork> ImportAsync(
+    public async Task<CatalogueImportResult> ImportAsync(
         EpubMetadata metadata,
         SourceFile sourceFile,
         CancellationToken cancellationToken = default)
@@ -34,47 +35,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         await using var connection = OpenConnection();
         await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
         var existing = await FindExistingAsync(connection, transaction, sourceFile, cancellationToken);
-        var workId = existing?.WorkId ?? Guid.NewGuid();
-        var status = existing?.Status ?? ReadingStatus.Unknown;
-        var personalNote = existing?.PersonalNote;
-
-        if (existing is null)
-        {
-            await using var insertWork = connection.CreateCommand();
-            insertWork.Transaction = transaction;
-            insertWork.CommandText = "INSERT INTO Works (Id, Status, PersonalNote) VALUES ($id, $status, $personalNote);";
-            insertWork.Parameters.AddWithValue("$id", workId.ToString("D"));
-            insertWork.Parameters.AddWithValue("$status", (int)ReadingStatus.Unknown);
-            insertWork.Parameters.AddWithValue("$personalNote", DBNull.Value);
-            await insertWork.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        var versionId = existing?.VersionId ?? Guid.NewGuid();
-        if (existing is null)
-        {
-            await using var insertVersion = connection.CreateCommand();
-            insertVersion.Transaction = transaction;
-            insertVersion.CommandText = """
-                INSERT INTO DownloadedVersions
-                    (Id, WorkId, Title, Author, Description, SourceUrl, Ao3WorkId, WordCount, IsComplete,
-                     AuthorNotes, DownloadedChapterCount, TotalChapterCount, ImportedAt)
-                VALUES
-                    ($id, $workId, $title, $author, $description, $sourceUrl, $ao3WorkId, $wordCount, $isComplete,
-                     $authorNotes, $downloadedChapterCount, $totalChapterCount, $importedAt);
-                """;
-            AddVersionParameters(insertVersion, versionId, workId, metadata);
-            await insertVersion.ExecuteNonQueryAsync(cancellationToken);
-
-            await using var insertCopy = connection.CreateCommand();
-            insertCopy.Transaction = transaction;
-            insertCopy.CommandText = """
-                INSERT INTO EpubCopies (Id, VersionId, FileReference, DisplayName)
-                VALUES ($id, $versionId, $fileReference, $displayName);
-                """;
-            AddCopyParameters(insertCopy, Guid.NewGuid(), versionId, sourceFile);
-            await insertCopy.ExecuteNonQueryAsync(cancellationToken);
-        }
-        else
+        if (existing is not null)
         {
             await using var updateVersion = connection.CreateCommand();
             updateVersion.Transaction = transaction;
@@ -93,7 +54,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                     ImportedAt = $importedAt
                 WHERE Id = $id;
                 """;
-            AddVersionParameters(updateVersion, versionId, workId, metadata);
+            AddVersionParameters(updateVersion, existing.Value.VersionId, existing.Value.WorkId, metadata);
             await updateVersion.ExecuteNonQueryAsync(cancellationToken);
 
             await using var updateCopy = connection.CreateCommand();
@@ -104,19 +65,183 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                     DisplayName = $displayName
                 WHERE Id = $id;
                 """;
-            AddCopyParameters(updateCopy, existing.Value.CopyId, versionId, sourceFile);
+            AddCopyParameters(updateCopy, existing.Value.CopyId, existing.Value.VersionId, sourceFile);
             await updateCopy.ExecuteNonQueryAsync(cancellationToken);
+
+            await ReplaceTagsAsync(connection, transaction, existing.Value.VersionId, metadata, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new CatalogueImportResult(
+                ToImportedWork(
+                    existing.Value.WorkId,
+                    metadata,
+                    sourceFile,
+                    existing.Value.Status,
+                    existing.Value.PersonalNote,
+                    WasCreated: false),
+                null);
         }
 
-        await ReplaceTagsAsync(connection, transaction, versionId, metadata, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return ToImportedWork(
+        var candidates = metadata.Ao3WorkId is null
+            ? []
+            : await FindCandidateWorksAsync(connection, transaction, metadata.Ao3WorkId, cancellationToken);
+        var associatedWork = candidates.Count == 1 && HasCompatibleIdentity(metadata, candidates[0])
+            ? candidates[0]
+            : null;
+        if (candidates.Count > 0 && associatedWork is null)
+        {
+            var review = await SaveImportReviewAsync(
+                connection,
+                transaction,
+                sourceFile,
+                metadata,
+                candidates,
+                cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new CatalogueImportResult(null, review);
+        }
+
+        var workId = associatedWork?.WorkId ?? Guid.NewGuid();
+        var status = associatedWork?.ReadingStatus ?? ReadingStatus.Unknown;
+        var personalNote = associatedWork?.PersonalNote;
+        if (associatedWork is null)
+        {
+            await using var insertWork = connection.CreateCommand();
+            insertWork.Transaction = transaction;
+            insertWork.CommandText = "INSERT INTO Works (Id, Status, PersonalNote) VALUES ($id, $status, $personalNote);";
+            insertWork.Parameters.AddWithValue("$id", workId.ToString("D"));
+            insertWork.Parameters.AddWithValue("$status", (int)ReadingStatus.Unknown);
+            insertWork.Parameters.AddWithValue("$personalNote", DBNull.Value);
+            await insertWork.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var versionId = Guid.NewGuid();
+        await InsertVersionAndCopyAsync(
+            connection,
+            transaction,
+            versionId,
             workId,
             metadata,
             sourceFile,
+            cancellationToken);
+        await ReplaceTagsAsync(connection, transaction, versionId, metadata, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new CatalogueImportResult(
+            ToImportedWork(
+                workId,
+                metadata,
+                sourceFile,
+                status,
+                personalNote,
+                WasCreated: associatedWork is null),
+            null);
+    }
+
+    public async Task<IReadOnlyList<ImportReview>> GetImportReviewsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = OpenConnection();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT Id, FileReference, DisplayName, MetadataJson, Reason
+            FROM ImportReviews
+            ORDER BY DisplayName COLLATE NOCASE;
+            """;
+
+        var reviewRows = new List<StoredReviewRow>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            reviewRows.Add(new StoredReviewRow(
+                Guid.Parse(reader.GetString(0)),
+                new SourceFile(reader.GetString(1), reader.GetString(2)),
+                DeserializeMetadata(reader.GetString(3)),
+                reader.GetString(4)));
+        }
+
+        var reviews = new List<ImportReview>(reviewRows.Count);
+        foreach (var row in reviewRows)
+        {
+            var candidates = await ReadReviewCandidatesAsync(connection, row.Id, cancellationToken);
+            reviews.Add(new ImportReview(row.Id, row.File, row.Metadata, row.Reason, candidates));
+        }
+
+        return reviews;
+    }
+
+    public Task<ImportedWork> ResolveImportReviewAsNewWorkAsync(
+        Guid reviewId,
+        CancellationToken cancellationToken = default)
+    {
+        return ResolveImportReviewAsync(reviewId, null, cancellationToken);
+    }
+
+    public Task<ImportedWork> ResolveImportReviewToExistingWorkAsync(
+        Guid reviewId,
+        Guid workId,
+        CancellationToken cancellationToken = default)
+    {
+        return ResolveImportReviewAsync(reviewId, workId, cancellationToken);
+    }
+
+    private async Task<ImportedWork> ResolveImportReviewAsync(
+        Guid reviewId,
+        Guid? targetWorkId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = OpenConnection();
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        var storedReview = await FindImportReviewAsync(connection, transaction, reviewId, cancellationToken)
+            ?? throw new InvalidOperationException($"Import review '{reviewId}' was not found.");
+
+        var workId = targetWorkId ?? Guid.NewGuid();
+        var status = ReadingStatus.Unknown;
+        string? personalNote = null;
+        var wasCreated = targetWorkId is null;
+        if (targetWorkId is null)
+        {
+            await using var insertWork = connection.CreateCommand();
+            insertWork.Transaction = transaction;
+            insertWork.CommandText = "INSERT INTO Works (Id, Status, PersonalNote) VALUES ($id, $status, $personalNote);";
+            insertWork.Parameters.AddWithValue("$id", workId.ToString("D"));
+            insertWork.Parameters.AddWithValue("$status", (int)ReadingStatus.Unknown);
+            insertWork.Parameters.AddWithValue("$personalNote", DBNull.Value);
+            await insertWork.ExecuteNonQueryAsync(cancellationToken);
+        }
+        else
+        {
+            if (storedReview.Candidates.All(candidate => candidate.WorkId != targetWorkId.Value))
+            {
+                throw new InvalidOperationException(
+                    $"Work '{targetWorkId}' is not a candidate for import review '{reviewId}'.");
+            }
+
+            (status, personalNote) = await ReadWorkRecordAsync(
+                connection,
+                transaction,
+                targetWorkId.Value,
+                cancellationToken);
+        }
+
+        var versionId = Guid.NewGuid();
+        await InsertVersionAndCopyAsync(
+            connection,
+            transaction,
+            versionId,
+            workId,
+            storedReview.Metadata,
+            storedReview.File,
+            cancellationToken);
+        await ReplaceTagsAsync(connection, transaction, versionId, storedReview.Metadata, cancellationToken);
+        await DeleteImportReviewAsync(connection, transaction, reviewId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return ToImportedWork(
+            workId,
+            storedReview.Metadata,
+            storedReview.File,
             status,
             personalNote,
-            WasCreated: existing is null);
+            wasCreated);
     }
 
     public async Task SaveReadingRecordAsync(
@@ -168,6 +293,8 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
+            DELETE FROM ImportReviewCandidates;
+            DELETE FROM ImportReviews;
             DELETE FROM EpubTags;
             DELETE FROM EpubCopies;
             DELETE FROM DownloadedVersions;
@@ -329,9 +456,27 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 PRIMARY KEY (VersionId, Category, Value),
                 FOREIGN KEY (VersionId) REFERENCES DownloadedVersions (Id)
             );
+            CREATE TABLE IF NOT EXISTS ImportReviews
+            (
+                Id TEXT NOT NULL PRIMARY KEY,
+                FileReference TEXT NOT NULL UNIQUE,
+                DisplayName TEXT NOT NULL,
+                MetadataJson TEXT NOT NULL,
+                Reason TEXT NOT NULL,
+                CreatedAt INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS ImportReviewCandidates
+            (
+                ReviewId TEXT NOT NULL,
+                WorkId TEXT NOT NULL,
+                PRIMARY KEY (ReviewId, WorkId),
+                FOREIGN KEY (ReviewId) REFERENCES ImportReviews (Id),
+                FOREIGN KEY (WorkId) REFERENCES Works (Id)
+            );
             CREATE INDEX IF NOT EXISTS IX_DownloadedVersions_WorkId ON DownloadedVersions (WorkId);
             CREATE INDEX IF NOT EXISTS IX_DownloadedVersions_Ao3WorkId ON DownloadedVersions (Ao3WorkId);
             CREATE INDEX IF NOT EXISTS IX_EpubCopies_VersionId ON EpubCopies (VersionId);
+            CREATE INDEX IF NOT EXISTS IX_ImportReviewCandidates_WorkId ON ImportReviewCandidates (WorkId);
             """;
         command.ExecuteNonQuery();
 
@@ -384,6 +529,315 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         }
 
         return columns;
+    }
+
+    private static async Task InsertVersionAndCopyAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid versionId,
+        Guid workId,
+        EpubMetadata metadata,
+        SourceFile sourceFile,
+        CancellationToken cancellationToken)
+    {
+        await using var insertVersion = connection.CreateCommand();
+        insertVersion.Transaction = transaction;
+        insertVersion.CommandText = """
+            INSERT INTO DownloadedVersions
+                (Id, WorkId, Title, Author, Description, SourceUrl, Ao3WorkId, WordCount, IsComplete,
+                 AuthorNotes, DownloadedChapterCount, TotalChapterCount, ImportedAt)
+            VALUES
+                ($id, $workId, $title, $author, $description, $sourceUrl, $ao3WorkId, $wordCount, $isComplete,
+                 $authorNotes, $downloadedChapterCount, $totalChapterCount, $importedAt);
+            """;
+        AddVersionParameters(insertVersion, versionId, workId, metadata);
+        await insertVersion.ExecuteNonQueryAsync(cancellationToken);
+
+        await using var insertCopy = connection.CreateCommand();
+        insertCopy.Transaction = transaction;
+        insertCopy.CommandText = """
+            INSERT INTO EpubCopies (Id, VersionId, FileReference, DisplayName)
+            VALUES ($id, $versionId, $fileReference, $displayName);
+            """;
+        AddCopyParameters(insertCopy, Guid.NewGuid(), versionId, sourceFile);
+        await insertCopy.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<ImportReviewCandidate>> FindCandidateWorksAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string ao3WorkId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            WITH CurrentMetadata AS
+            (
+                SELECT versions.*,
+                       ROW_NUMBER() OVER (PARTITION BY WorkId ORDER BY ImportedAt DESC, Id DESC) AS RowNumber
+                FROM DownloadedVersions versions
+            ), CandidateIds AS
+            (
+                SELECT DISTINCT WorkId
+                FROM DownloadedVersions
+                WHERE Ao3WorkId = $ao3WorkId
+            )
+            SELECT candidates.WorkId, current.Title, current.Author, works.Status, works.PersonalNote,
+                   COUNT(copies.Id)
+            FROM CandidateIds candidates
+            INNER JOIN Works works ON works.Id = candidates.WorkId
+            INNER JOIN CurrentMetadata current
+                ON current.WorkId = candidates.WorkId AND current.RowNumber = 1
+            LEFT JOIN DownloadedVersions versions ON versions.WorkId = candidates.WorkId
+            LEFT JOIN EpubCopies copies ON copies.VersionId = versions.Id
+            GROUP BY candidates.WorkId, current.Title, current.Author, works.Status, works.PersonalNote
+            ORDER BY current.Title COLLATE NOCASE;
+            """;
+        command.Parameters.AddWithValue("$ao3WorkId", ao3WorkId);
+
+        var candidates = new List<ImportReviewCandidate>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            candidates.Add(new ImportReviewCandidate(
+                Guid.Parse(reader.GetString(0)),
+                reader.GetString(1),
+                ReadNullableString(reader, 2),
+                (ReadingStatus)reader.GetInt32(3),
+                ReadNullableString(reader, 4),
+                reader.GetInt32(5)));
+        }
+
+        return candidates;
+    }
+
+    private static bool HasCompatibleIdentity(
+        EpubMetadata metadata,
+        ImportReviewCandidate candidate)
+    {
+        if (!string.Equals(
+                NormalizeIdentityText(metadata.Title),
+                NormalizeIdentityText(candidate.Title),
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return metadata.Author is null
+            || candidate.Author is null
+            || string.Equals(
+                NormalizeIdentityText(metadata.Author),
+                NormalizeIdentityText(candidate.Author),
+                StringComparison.Ordinal);
+    }
+
+    private static string NormalizeIdentityText(string value)
+    {
+        return string.Join(
+                " ",
+                value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            .ToUpperInvariant();
+    }
+
+    private static async Task<ImportReview> SaveImportReviewAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        SourceFile sourceFile,
+        EpubMetadata metadata,
+        IReadOnlyList<ImportReviewCandidate> candidates,
+        CancellationToken cancellationToken)
+    {
+        var reviewId = await FindImportReviewIdAsync(
+            connection,
+            transaction,
+            sourceFile.Reference,
+            cancellationToken) ?? Guid.NewGuid();
+        var reason = candidates.Count > 1
+            ? "More than one existing work has this source identifier."
+            : "The source identifier matches an existing work, but title or author metadata conflicts.";
+        var metadataJson = JsonSerializer.Serialize(metadata);
+
+        await using var save = connection.CreateCommand();
+        save.Transaction = transaction;
+        save.CommandText = await FindImportReviewIdAsync(
+                connection,
+                transaction,
+                sourceFile.Reference,
+                cancellationToken) is null
+            ? """
+              INSERT INTO ImportReviews (Id, FileReference, DisplayName, MetadataJson, Reason, CreatedAt)
+              VALUES ($id, $fileReference, $displayName, $metadataJson, $reason, $createdAt);
+              """
+            : """
+              UPDATE ImportReviews
+              SET DisplayName = $displayName,
+                  MetadataJson = $metadataJson,
+                  Reason = $reason,
+                  CreatedAt = $createdAt
+              WHERE Id = $id;
+              """;
+        save.Parameters.AddWithValue("$id", reviewId.ToString("D"));
+        save.Parameters.AddWithValue("$fileReference", sourceFile.Reference);
+        save.Parameters.AddWithValue("$displayName", sourceFile.DisplayName);
+        save.Parameters.AddWithValue("$metadataJson", metadataJson);
+        save.Parameters.AddWithValue("$reason", reason);
+        save.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.Ticks);
+        await save.ExecuteNonQueryAsync(cancellationToken);
+
+        await using var deleteCandidates = connection.CreateCommand();
+        deleteCandidates.Transaction = transaction;
+        deleteCandidates.CommandText = "DELETE FROM ImportReviewCandidates WHERE ReviewId = $reviewId;";
+        deleteCandidates.Parameters.AddWithValue("$reviewId", reviewId.ToString("D"));
+        await deleteCandidates.ExecuteNonQueryAsync(cancellationToken);
+
+        foreach (var candidate in candidates)
+        {
+            await using var insertCandidate = connection.CreateCommand();
+            insertCandidate.Transaction = transaction;
+            insertCandidate.CommandText = """
+                INSERT INTO ImportReviewCandidates (ReviewId, WorkId)
+                VALUES ($reviewId, $workId);
+                """;
+            insertCandidate.Parameters.AddWithValue("$reviewId", reviewId.ToString("D"));
+            insertCandidate.Parameters.AddWithValue("$workId", candidate.WorkId.ToString("D"));
+            await insertCandidate.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        return new ImportReview(reviewId, sourceFile, metadata, reason, candidates);
+    }
+
+    private static async Task<Guid?> FindImportReviewIdAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string fileReference,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT Id FROM ImportReviews WHERE FileReference = $fileReference;";
+        command.Parameters.AddWithValue("$fileReference", fileReference);
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value is string id ? Guid.Parse(id) : null;
+    }
+
+    private static async Task<ImportReview?> FindImportReviewAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid reviewId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT FileReference, DisplayName, MetadataJson, Reason
+            FROM ImportReviews
+            WHERE Id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", reviewId.ToString("D"));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        var file = new SourceFile(reader.GetString(0), reader.GetString(1));
+        var metadata = DeserializeMetadata(reader.GetString(2));
+        var reason = reader.GetString(3);
+        await reader.DisposeAsync();
+        var candidates = await ReadReviewCandidatesAsync(connection, reviewId, cancellationToken, transaction);
+        return new ImportReview(reviewId, file, metadata, reason, candidates);
+    }
+
+    private static async Task<IReadOnlyList<ImportReviewCandidate>> ReadReviewCandidatesAsync(
+        SqliteConnection connection,
+        Guid reviewId,
+        CancellationToken cancellationToken,
+        SqliteTransaction? transaction = null)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            WITH CurrentMetadata AS
+            (
+                SELECT versions.*,
+                       ROW_NUMBER() OVER (PARTITION BY WorkId ORDER BY ImportedAt DESC, Id DESC) AS RowNumber
+                FROM DownloadedVersions versions
+            )
+            SELECT reviewCandidates.WorkId, current.Title, current.Author, works.Status, works.PersonalNote,
+                   COUNT(copies.Id)
+            FROM ImportReviewCandidates reviewCandidates
+            INNER JOIN Works works ON works.Id = reviewCandidates.WorkId
+            INNER JOIN CurrentMetadata current
+                ON current.WorkId = reviewCandidates.WorkId AND current.RowNumber = 1
+            LEFT JOIN DownloadedVersions versions ON versions.WorkId = reviewCandidates.WorkId
+            LEFT JOIN EpubCopies copies ON copies.VersionId = versions.Id
+            WHERE reviewCandidates.ReviewId = $reviewId
+            GROUP BY reviewCandidates.WorkId, current.Title, current.Author, works.Status, works.PersonalNote
+            ORDER BY current.Title COLLATE NOCASE;
+            """;
+        command.Parameters.AddWithValue("$reviewId", reviewId.ToString("D"));
+
+        var candidates = new List<ImportReviewCandidate>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            candidates.Add(new ImportReviewCandidate(
+                Guid.Parse(reader.GetString(0)),
+                reader.GetString(1),
+                ReadNullableString(reader, 2),
+                (ReadingStatus)reader.GetInt32(3),
+                ReadNullableString(reader, 4),
+                reader.GetInt32(5)));
+        }
+
+        return candidates;
+    }
+
+    private static async Task<(ReadingStatus Status, string? PersonalNote)> ReadWorkRecordAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid workId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT Status, PersonalNote FROM Works WHERE Id = $id;";
+        command.Parameters.AddWithValue("$id", workId.ToString("D"));
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException($"Work '{workId}' was not found.");
+        }
+
+        return (
+            (ReadingStatus)reader.GetInt32(0),
+            reader.IsDBNull(1) ? null : reader.GetString(1));
+    }
+
+    private static async Task DeleteImportReviewAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid reviewId,
+        CancellationToken cancellationToken)
+    {
+        await using var deleteCandidates = connection.CreateCommand();
+        deleteCandidates.Transaction = transaction;
+        deleteCandidates.CommandText = "DELETE FROM ImportReviewCandidates WHERE ReviewId = $reviewId;";
+        deleteCandidates.Parameters.AddWithValue("$reviewId", reviewId.ToString("D"));
+        await deleteCandidates.ExecuteNonQueryAsync(cancellationToken);
+
+        await using var deleteReview = connection.CreateCommand();
+        deleteReview.Transaction = transaction;
+        deleteReview.CommandText = "DELETE FROM ImportReviews WHERE Id = $reviewId;";
+        deleteReview.Parameters.AddWithValue("$reviewId", reviewId.ToString("D"));
+        await deleteReview.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static EpubMetadata DeserializeMetadata(string json)
+    {
+        return JsonSerializer.Deserialize<EpubMetadata>(json)
+            ?? throw new InvalidOperationException("The saved import review metadata is invalid.");
     }
 
     private static async Task<ExistingCopy?> FindExistingAsync(
@@ -602,4 +1056,10 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         Guid WorkId,
         ReadingStatus Status,
         string? PersonalNote);
+
+    private readonly record struct StoredReviewRow(
+        Guid Id,
+        SourceFile File,
+        EpubMetadata Metadata,
+        string Reason);
 }
