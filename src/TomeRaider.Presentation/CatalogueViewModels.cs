@@ -120,9 +120,21 @@ public sealed class ImportReviewViewModel(ImportReview review)
         ? "Unknown"
         : $"{review.Metadata.DownloadedChapterCount} / {review.Metadata.TotalChapterCount?.ToString() ?? "?"}";
 
+    public string Completion => review.Metadata.IsComplete switch
+    {
+        true => "Complete",
+        false => "Unfinished",
+        _ => "Unknown"
+    };
+
     public string Tags => string.Join(", ", review.Metadata.Tags);
 
     public string? AuthorNotes => review.Metadata.AuthorNotes;
+
+    public IReadOnlyList<TagGroupViewModel> TagGroups => review.Metadata.CategorizedTags
+        .GroupBy(tag => tag.Category, StringComparer.OrdinalIgnoreCase)
+        .Select(group => new TagGroupViewModel(group.Key, group.Select(tag => tag.Value).ToArray()))
+        .ToArray();
 
     public string Reason => review.Reason;
 

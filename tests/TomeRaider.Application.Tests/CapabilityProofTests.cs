@@ -597,6 +597,8 @@ public sealed class CapabilityProofTests
                 "A Different Work",
                 "A. Writer",
                 sourceUrl,
+                wordCount: 123,
+                status: "Unfinished",
                 description: "Conflicting summary.");
             var result = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var reviewItem = result.Items.Single(item => item.File.DisplayName == "conflict.epub");
@@ -698,6 +700,8 @@ public sealed class CapabilityProofTests
                 "A Different Work",
                 "A. Writer",
                 sourceUrl,
+                wordCount: 123,
+                status: "Unfinished",
                 description: "Conflicting summary.");
             var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var review = import.Items.Single(item => item.File.DisplayName == "conflict.epub").Review!;
@@ -835,6 +839,8 @@ public sealed class CapabilityProofTests
                 "A Different Work",
                 "A. Writer",
                 sourceUrl,
+                wordCount: 123,
+                status: "Unfinished",
                 description: "Conflicting summary.");
 
             await viewModel.SelectFolderAndImportAsync();
@@ -844,6 +850,9 @@ public sealed class CapabilityProofTests
             await Assert.That(review.Location).IsEqualTo(Path.Combine(workspace, "conflict.epub"));
             await Assert.That(review.Title).IsEqualTo("A Different Work");
             await Assert.That(review.Description).IsEqualTo("Conflicting summary.");
+            await Assert.That(review.WordCount).IsEqualTo("123");
+            await Assert.That(review.Completion).IsEqualTo("Unfinished");
+            await Assert.That(review.TagGroups).Count().IsEqualTo(1);
             await Assert.That(review.Candidates).Count().IsEqualTo(1);
 
             await viewModel.ResolveImportReviewToExistingAsync(review.Id, review.Candidates[0].WorkId);
