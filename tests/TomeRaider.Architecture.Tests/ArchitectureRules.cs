@@ -82,9 +82,8 @@ internal static class ArchitectureRules
 
     public static IReadOnlyList<string> ReadProductionProjectNames(string repositoryRoot)
     {
-        return Directory
-            .EnumerateFiles(Path.Combine(repositoryRoot, "src"), "*.csproj", SearchOption.AllDirectories)
-            .Select(path => Path.GetFileNameWithoutExtension(path)!)
+        return ReadProductionProjects(repositoryRoot)
+            .Keys
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
     }
@@ -115,8 +114,11 @@ internal static class ArchitectureRules
         var selectionViolations = FindModuleSelectionViolations(
             assemblies.Select(assembly => assembly.Name).ToArray(),
             EmittedModuleNames);
+        var knownAssemblies = assemblies
+            .Where(assembly => AllowedReferences.ContainsKey(assembly.Name))
+            .ToArray();
         var productionNames = AllowedReferences.Keys.ToHashSet(StringComparer.Ordinal);
-        var projectViolations = assemblies
+        var projectViolations = knownAssemblies
             .SelectMany(assembly => assembly.Assembly
                 .GetReferencedAssemblies()
                 .Select(reference => (Assembly: assembly.Name, Reference: reference.Name))
@@ -131,7 +133,7 @@ internal static class ArchitectureRules
                 StringComparison.Ordinal))
             .Select(assembly =>
                 $"{assembly.Name} -> selected assembly is {assembly.Assembly.GetName().Name ?? "unnamed"}");
-        var frameworkViolations = assemblies
+        var frameworkViolations = knownAssemblies
             .SelectMany(assembly => assembly.Assembly
                 .GetReferencedAssemblies()
                 .Select(reference => (Assembly: assembly.Name, Reference: reference.Name))
@@ -163,9 +165,7 @@ internal static class ArchitectureRules
 
     public static IReadOnlyList<ProjectDependency> ReadProjectReferences(string repositoryRoot)
     {
-        var projects = Directory
-            .EnumerateFiles(Path.Combine(repositoryRoot, "src"), "*.csproj", SearchOption.AllDirectories)
-            .ToDictionary(path => Path.GetFileNameWithoutExtension(path), StringComparer.Ordinal);
+        var projects = ReadProductionProjects(repositoryRoot);
         var dependencies = new List<ProjectDependency>();
 
         foreach (var project in projects)
@@ -186,9 +186,7 @@ internal static class ArchitectureRules
 
     public static IReadOnlyList<PackageDependency> ReadPackageReferences(string repositoryRoot)
     {
-        var projects = Directory
-            .EnumerateFiles(Path.Combine(repositoryRoot, "src"), "*.csproj", SearchOption.AllDirectories)
-            .ToDictionary(path => Path.GetFileNameWithoutExtension(path), StringComparer.Ordinal);
+        var projects = ReadProductionProjects(repositoryRoot);
         var dependencies = new List<PackageDependency>();
 
         foreach (var project in projects)
@@ -203,6 +201,13 @@ internal static class ArchitectureRules
         }
 
         return dependencies;
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadProductionProjects(string repositoryRoot)
+    {
+        return Directory
+            .EnumerateFiles(Path.Combine(repositoryRoot, "src"), "*.csproj", SearchOption.AllDirectories)
+            .ToDictionary(path => Path.GetFileNameWithoutExtension(path), StringComparer.Ordinal);
     }
 
     public static void AssertAcyclic(IReadOnlyCollection<ProjectDependency> dependencies)

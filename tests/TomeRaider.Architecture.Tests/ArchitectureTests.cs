@@ -169,6 +169,23 @@ public sealed class ArchitectureTests
             "TomeRaider.Domain -> selected assembly is TomeRaider.Application");
     }
 
+    [Test]
+    public async Task EmittedChecksReportUnknownSelectionsWithoutThrowing()
+    {
+        var violations = ArchitectureRules.FindEmittedReferenceViolations(
+        [
+            ("TomeRaider.Domain", typeof(Work).Assembly),
+            ("TomeRaider.Application", typeof(CatalogueApplication).Assembly),
+            ("TomeRaider.Infrastructure", typeof(EpubMetadataExtractor).Assembly),
+            ("TomeRaider.Platform.Storage", typeof(AvaloniaStorageFileSource).Assembly),
+            ("TomeRaider.Presentation", typeof(MainViewModel).Assembly),
+            ("TomeRaider.Desktop", System.Reflection.Assembly.Load("TomeRaider.Desktop")),
+            ("TomeRaider.Unknown", typeof(CatalogueApplication).Assembly)
+        ]);
+
+        await Assert.That(violations).Contains("Unknown production module: TomeRaider.Unknown");
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
