@@ -66,7 +66,10 @@ public sealed record ImportReviewCandidate(
     string? Author,
     ReadingStatus ReadingStatus,
     string? PersonalNote,
-    int CopyCount);
+    int CopyCount)
+{
+    public string ReadingStatusText => ReadingStatus.ToString();
+}
 
 public sealed record ImportReview(
     Guid Id,

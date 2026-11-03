@@ -131,7 +131,7 @@ public sealed class ImportReviewCandidateViewModel(
 
     public string? Author => candidate.Author;
 
-    public string ReadingStatus => candidate.ReadingStatus.ToString();
+    public string ReadingStatus => candidate.ReadingStatusText;
 
     public string PersonalInformation => string.IsNullOrWhiteSpace(candidate.PersonalNote)
         ? "No personal note"
