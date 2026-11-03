@@ -60,6 +60,30 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task ClearingCatalogueRemovesWorksAndReadingRecords()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "clear.epub", "A Clearable Work", "A. Reader");
+            var application = CreateApplication(Path.Combine(workspace, "catalogue.sqlite"));
+            var result = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var workId = result.Items.Single().Work!.Id;
+
+            await application.SaveReadingRecordAsync(workId, ReadingStatus.Read, "Keep this note until clear.");
+            await application.ClearCatalogueAsync();
+
+            await Assert.That(await application.GetWorksAsync()).Count().IsEqualTo(0);
+            await Assert.That(await application.GetReadingRecordAsync(workId)).IsNull();
+            await Assert.That(await application.GetWorkDetailsAsync(workId)).IsNull();
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ExtractsAo3WorkFromOriginallyPostedPrefaceMessage()
     {
         await AssertAo3PrefaceMessageAsync("Originally posted on the");
@@ -438,6 +462,38 @@ public sealed class CapabilityProofTests
             await Assert.That(viewModel.WorkDetails).IsNotNull();
             await Assert.That(viewModel.WorkDetails!.Description).IsEqualTo("A browseable summary.");
             await Assert.That(viewModel.WorkDetails.Copies).Count().IsEqualTo(1);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ViewModelConfirmsAndClearsTheCollection()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "clear-view.epub", "A Clearable View", "A. Reader");
+            var viewModel = new MainViewModel(
+                new CatalogueSession(
+                    CreateApplication(Path.Combine(workspace, "catalogue.sqlite")),
+                    new PhysicalFileSource(workspace)));
+
+            await viewModel.SelectFolderAndImportAsync();
+            await viewModel.SelectWorkAsync(viewModel.Works.Single().Id);
+            viewModel.RequestClearCollection();
+
+            await Assert.That(viewModel.IsClearCollectionConfirmationVisible).IsTrue();
+            await viewModel.ConfirmClearCollectionAsync();
+
+            await Assert.That(viewModel.Works).Count().IsEqualTo(0);
+            await Assert.That(viewModel.Items).Count().IsEqualTo(0);
+            await Assert.That(viewModel.SelectedWork).IsNull();
+            await Assert.That(viewModel.WorkDetails).IsNull();
+            await Assert.That(viewModel.IsClearCollectionConfirmationVisible).IsFalse();
+            await Assert.That(viewModel.StatusMessage).IsEqualTo("Collection cleared.");
         }
         finally
         {

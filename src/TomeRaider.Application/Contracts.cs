@@ -141,6 +141,8 @@ public interface IWorkCatalogue
     Task<CatalogueWorkDetails?> GetWorkDetailsAsync(
         Guid workId,
         CancellationToken cancellationToken = default);
+
+    Task ClearAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IFileSource

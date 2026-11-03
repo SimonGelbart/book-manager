@@ -74,6 +74,11 @@ public sealed class CatalogueApplication
         return catalogue.GetWorkDetailsAsync(workId, cancellationToken);
     }
 
+    public Task ClearCatalogueAsync(CancellationToken cancellationToken = default)
+    {
+        return catalogue.ClearAsync(cancellationToken);
+    }
+
     private async Task<ImportResult> ImportFolderAsync(
         IFileSource fileSource,
         SourceFolder folder,

@@ -161,6 +161,22 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             reader.IsDBNull(1) ? null : reader.GetString(1));
     }
 
+    public async Task ClearAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = OpenConnection();
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM EpubTags;
+            DELETE FROM EpubCopies;
+            DELETE FROM DownloadedVersions;
+            DELETE FROM Works;
+            """;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<CatalogueWorkSummary>> GetWorksAsync(
         CancellationToken cancellationToken = default)
     {

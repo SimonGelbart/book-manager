@@ -32,6 +32,9 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private WorkDetailsViewModel? workDetails;
 
+    [ObservableProperty]
+    private bool isClearCollectionConfirmationVisible;
+
     partial void OnSelectedItemChanged(ImportItemResult? value)
     {
         PersonalNote = value?.Work?.PersonalNote ?? string.Empty;
@@ -67,6 +70,36 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception exception)
         {
             StatusMessage = $"Could not save the reading record: {exception.Message}";
+        }
+    }
+
+    public void RequestClearCollection()
+    {
+        IsClearCollectionConfirmationVisible = true;
+    }
+
+    public void CancelClearCollection()
+    {
+        IsClearCollectionConfirmationVisible = false;
+    }
+
+    public async Task ConfirmClearCollectionAsync()
+    {
+        try
+        {
+            await session.Application.ClearCatalogueAsync();
+            Items.Clear();
+            Works.Clear();
+            SelectedItem = null;
+            SelectedWork = null;
+            WorkDetails = null;
+            PersonalNote = string.Empty;
+            IsClearCollectionConfirmationVisible = false;
+            StatusMessage = "Collection cleared.";
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = $"Could not clear the collection: {exception.Message}";
         }
     }
 
