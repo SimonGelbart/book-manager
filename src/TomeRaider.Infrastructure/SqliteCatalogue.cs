@@ -71,63 +71,114 @@ public sealed partial class SqliteCatalogue : IWorkCatalogue
         var existing = await FindExistingAsync(connection, transaction, sourceFile, cancellationToken);
         if (existing is not null)
         {
-            await using var updateVersion = connection.CreateCommand();
-            updateVersion.Transaction = transaction;
-            updateVersion.CommandText = """
-                UPDATE DownloadedVersions
-                SET Title = $title,
-                    Author = $author,
-                    Description = $description,
-                    SourceUrl = $sourceUrl,
-                    Ao3WorkId = $ao3WorkId,
-                    WordCount = $wordCount,
-                    IsComplete = $isComplete,
-                    AuthorNotes = $authorNotes,
-                    DownloadedChapterCount = $downloadedChapterCount,
-                    TotalChapterCount = $totalChapterCount,
-                    ImportedAt = $importedAt
-                WHERE Id = $id;
-                """;
-            AddVersionParameters(updateVersion, existing.Value.VersionId, existing.Value.WorkId, metadata);
-            await updateVersion.ExecuteNonQueryAsync(cancellationToken);
-
-            await using var updateCopy = connection.CreateCommand();
-            updateCopy.Transaction = transaction;
-            updateCopy.CommandText = """
-                UPDATE EpubCopies
-                SET FileReference = $fileReference,
-                    DisplayName = $displayName
-                WHERE Id = $id;
-                """;
-            AddCopyParameters(updateCopy, existing.Value.CopyId, existing.Value.VersionId, sourceFile);
-            await updateCopy.ExecuteNonQueryAsync(cancellationToken);
-
-            await ReplaceTagsAsync(connection, transaction, existing.Value.VersionId, metadata, cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-            return new CatalogueImportResult(
-                ToImportedWork(
-                    existing.Value.WorkId,
-                    metadata,
-                    sourceFile,
-                    existing.Value.Status,
-                    existing.Value.PersonalNote,
-                    WasCreated: false),
-                null);
+            return await UpdateExistingCopyAsync(
+                connection,
+                transaction,
+                existing.Value,
+                metadata,
+                sourceFile,
+                cancellationToken);
         }
 
         if (decision.NeedsReview)
         {
-            var review = await SaveImportReviewAsync(
+            return await SaveImportReviewResultAsync(
                 connection,
                 transaction,
                 sourceFile,
                 metadata,
                 decision,
                 cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-            return new CatalogueImportResult(null, review);
         }
 
+        return await ImportWorkAsync(
+            connection,
+            transaction,
+            metadata,
+            sourceFile,
+            decision,
+            cancellationToken);
+    }
+
+    private static async Task<CatalogueImportResult> UpdateExistingCopyAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        ExistingCopy existing,
+        EpubMetadata metadata,
+        SourceFile sourceFile,
+        CancellationToken cancellationToken)
+    {
+        await using var updateVersion = connection.CreateCommand();
+        updateVersion.Transaction = transaction;
+        updateVersion.CommandText = """
+            UPDATE DownloadedVersions
+            SET Title = $title,
+                Author = $author,
+                Description = $description,
+                SourceUrl = $sourceUrl,
+                Ao3WorkId = $ao3WorkId,
+                WordCount = $wordCount,
+                IsComplete = $isComplete,
+                AuthorNotes = $authorNotes,
+                DownloadedChapterCount = $downloadedChapterCount,
+                TotalChapterCount = $totalChapterCount,
+                ImportedAt = $importedAt
+            WHERE Id = $id;
+            """;
+        AddVersionParameters(updateVersion, existing.VersionId, existing.WorkId, metadata);
+        await updateVersion.ExecuteNonQueryAsync(cancellationToken);
+
+        await using var updateCopy = connection.CreateCommand();
+        updateCopy.Transaction = transaction;
+        updateCopy.CommandText = """
+            UPDATE EpubCopies
+            SET FileReference = $fileReference,
+                DisplayName = $displayName
+            WHERE Id = $id;
+            """;
+        AddCopyParameters(updateCopy, existing.CopyId, existing.VersionId, sourceFile);
+        await updateCopy.ExecuteNonQueryAsync(cancellationToken);
+
+        await ReplaceTagsAsync(connection, transaction, existing.VersionId, metadata, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new CatalogueImportResult(
+            ToImportedWork(
+                existing.WorkId,
+                metadata,
+                sourceFile,
+                existing.Status,
+                existing.PersonalNote,
+                WasCreated: false),
+            null);
+    }
+
+    private static async Task<CatalogueImportResult> SaveImportReviewResultAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        SourceFile sourceFile,
+        EpubMetadata metadata,
+        ImportAssociationDecision decision,
+        CancellationToken cancellationToken)
+    {
+        var review = await SaveImportReviewAsync(
+            connection,
+            transaction,
+            sourceFile,
+            metadata,
+            decision,
+            cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new CatalogueImportResult(null, review);
+    }
+
+    private static async Task<CatalogueImportResult> ImportWorkAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        EpubMetadata metadata,
+        SourceFile sourceFile,
+        ImportAssociationDecision decision,
+        CancellationToken cancellationToken)
+    {
         var workId = decision.AssociatedWorkId ?? Guid.NewGuid();
         var status = ReadingStatus.Unknown;
         string? personalNote = null;
