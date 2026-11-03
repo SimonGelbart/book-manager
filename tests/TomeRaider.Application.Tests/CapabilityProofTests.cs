@@ -297,7 +297,6 @@ public sealed class CapabilityProofTests
                 .GetWorksAsync()).Single();
             await Assert.That(summary.DownloadedChapterCount).IsEqualTo(10);
             await Assert.That(summary.TotalChapterCount).IsEqualTo(12);
-            await Assert.That(summary.ChapterCountDisplay).IsEqualTo("10 / 12");
             await Assert.That(details!.CategorizedTags).Contains(
                 new CategorizedTag("Fandoms", "Synthetic Stories", "https://archiveofourown.org/tags/Synthetic%20Stories"));
             await Assert.That(details.AuthorNotes).IsEqualTo("Author note from the second preface.");
@@ -337,7 +336,7 @@ public sealed class CapabilityProofTests
 
             await Assert.That(summary.Id).IsEqualTo(originalWork.Id);
             await Assert.That(summary.Title).IsEqualTo("A Durable Generic Work");
-            await Assert.That(summary.ReadingStatus).IsEqualTo(ReadingStatus.Reading);
+            await Assert.That(summary.ReadingStatus).IsEqualTo(nameof(ReadingStatus.Reading));
             await Assert.That(summary.PersonalNote).IsEqualTo("Keep this personal note.");
             await Assert.That(summary.WordCount).IsNull();
             await Assert.That(summary.CopyCount).IsEqualTo(1);
@@ -353,7 +352,7 @@ public sealed class CapabilityProofTests
 
             var afterRescan = (await reopenedApplication.GetWorksAsync()).Single();
             await Assert.That(afterRescan.PersonalNote).IsEqualTo("Keep this personal note.");
-            await Assert.That(afterRescan.ReadingStatus).IsEqualTo(ReadingStatus.Reading);
+            await Assert.That(afterRescan.ReadingStatus).IsEqualTo(nameof(ReadingStatus.Reading));
         }
         finally
         {

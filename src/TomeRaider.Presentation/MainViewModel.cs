@@ -15,7 +15,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<ImportItemResult> Items { get; } = [];
 
-    public ObservableCollection<CatalogueWorkSummary> Works { get; } = [];
+    public ObservableCollection<WorkSummaryViewModel> Works { get; } = [];
 
     [ObservableProperty]
     private string statusMessage = "Choose an EPUB folder to begin.";
@@ -27,10 +27,10 @@ public sealed partial class MainViewModel : ObservableObject
     private ImportItemResult? selectedItem;
 
     [ObservableProperty]
-    private CatalogueWorkSummary? selectedWork;
+    private WorkSummaryViewModel? selectedWork;
 
     [ObservableProperty]
-    private CatalogueWorkDetails? workDetails;
+    private WorkDetailsViewModel? workDetails;
 
     partial void OnSelectedItemChanged(ImportItemResult? value)
     {
@@ -73,10 +73,11 @@ public sealed partial class MainViewModel : ObservableObject
     public async Task SelectWorkAsync(Guid workId)
     {
         SelectedWork = Works.FirstOrDefault(work => work.Id == workId);
-        WorkDetails = SelectedWork is null
+        var details = SelectedWork is null
             ? null
             : await session.Application.GetWorkDetailsAsync(workId);
-        PersonalNote = WorkDetails?.Summary.PersonalNote ?? string.Empty;
+        WorkDetails = details is null ? null : new WorkDetailsViewModel(details);
+        PersonalNote = WorkDetails?.PersonalNote ?? string.Empty;
     }
 
     private async Task ImportAsync(Func<Task<ImportResult>> import)
@@ -128,7 +129,7 @@ public sealed partial class MainViewModel : ObservableObject
         Works.Clear();
         foreach (var work in works)
         {
-            Works.Add(work);
+            Works.Add(new WorkSummaryViewModel(work));
         }
 
         if (selectedId is not null && Works.Any(work => work.Id == selectedId))

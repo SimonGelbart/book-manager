@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using TomeRaider.Application;
 
 namespace TomeRaider.Presentation;
 
@@ -58,7 +57,7 @@ public partial class MainView : UserControl
     private async void SelectWork(object? sender, SelectionChangedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel
-            && sender is ListBox { SelectedItem: CatalogueWorkSummary work })
+            && sender is ListBox { SelectedItem: WorkSummaryViewModel work })
         {
             await viewModel.SelectWorkAsync(work.Id);
         }

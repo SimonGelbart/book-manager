@@ -16,7 +16,7 @@ Date: 2026-11-03. Scope: issue [#3 — Durable folder catalogue and metadata](ht
 |---|---|---|
 | Locked restore | `dotnet restore TomeRaider.slnx --locked-mode` | Passed: 10 projects, 0 errors, 0 warnings. |
 | Desktop Release build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --configuration Release --no-restore` | Passed: 6 projects, 0 errors, 0 warnings. |
-| Application behavior/integration tests | `dotnet run --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release` | Passed: 19/19, 0 failed, 0 skipped. Includes real temporary SQLite reopen, generic/AO3 import, split-preface metadata, grouped AO3 copies, unchanged rescan, incomplete scan, and presentation behavior. |
+| Application behavior/integration tests | `dotnet run --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release` | Passed: 19/19, 0 failed, 0 skipped. Includes real temporary SQLite reopen, generic/AO3 import, split-preface metadata, separate internal works for same-AO3 evidence, unchanged rescan, incomplete scan, and presentation behavior. |
 | Architecture tests | `dotnet run --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --configuration Release` | Passed: 8/8, 0 failed, 0 skipped. Includes forbidden dependency and empty-selection failures. |
 | Diff whitespace | `git diff --check main...HEAD` | Passed with no findings. |
 

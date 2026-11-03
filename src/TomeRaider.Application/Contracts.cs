@@ -6,10 +6,7 @@ public sealed record SourceFolder(string Reference, string DisplayName);
 
 public sealed record SourceFile(string Reference, string DisplayName);
 
-public sealed record CategorizedTag(string Category, string Value, string? SourceUrl)
-{
-    public string DisplayText => $"{Category}: {Value}";
-}
+public sealed record CategorizedTag(string Category, string Value, string? SourceUrl);
 
 public sealed record EpubMetadata(
     string Title,
@@ -65,29 +62,13 @@ public sealed record CatalogueWorkSummary(
     string? Author,
     string? SourceUrl,
     string? Ao3WorkId,
-    ReadingStatus ReadingStatus,
+    string ReadingStatus,
     string? PersonalNote,
     int? WordCount,
     bool? IsComplete,
     int? DownloadedChapterCount,
     int? TotalChapterCount,
-    int CopyCount)
-{
-    public string ReadingStatusDisplay => ReadingStatus.ToString();
-
-    public string WordCountDisplay => WordCount?.ToString("N0") ?? "Unknown";
-
-    public string CompletionDisplay => IsComplete switch
-    {
-        true => "Complete",
-        false => "Unfinished",
-        _ => "Unknown"
-    };
-
-    public string ChapterCountDisplay => DownloadedChapterCount is null
-        ? "Unknown"
-        : $"{DownloadedChapterCount} / {TotalChapterCount?.ToString() ?? "?"}";
-}
+    int CopyCount);
 
 public sealed record CatalogueCopy(
     Guid Id,

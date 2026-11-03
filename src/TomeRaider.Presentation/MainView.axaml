@@ -22,12 +22,12 @@
                    SelectionChanged="SelectWork"
                    MinHeight="180">
             <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="app:CatalogueWorkSummary">
+              <DataTemplate x:DataType="vm:WorkSummaryViewModel">
                 <StackPanel Margin="4" Spacing="2">
                   <TextBlock FontWeight="Bold" Text="{Binding Title}" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding Author}" />
-                  <TextBlock Text="{Binding ReadingStatusDisplay}" />
-                  <TextBlock Text="{Binding WordCountDisplay, StringFormat='Words: {0}'}" />
+                  <TextBlock Text="{Binding ReadingStatus}" />
+                  <TextBlock Text="{Binding WordCount, StringFormat='Words: {0}'}" />
                 </StackPanel>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -35,18 +35,21 @@
         </StackPanel>
         <StackPanel Grid.Column="1" Spacing="6">
           <TextBlock FontWeight="Bold" Text="Work details" />
-          <TextBlock FontSize="22" FontWeight="Bold" Text="{Binding WorkDetails.Summary.Title}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding WorkDetails.Summary.Author, StringFormat='Author: {0}'}" />
-          <TextBlock Text="{Binding WorkDetails.Summary.CompletionDisplay, StringFormat='AO3 completion: {0}'}" />
-          <TextBlock Text="{Binding WorkDetails.Summary.WordCountDisplay, StringFormat='Words: {0}'}" />
-          <TextBlock Text="{Binding WorkDetails.Summary.ChapterCountDisplay, StringFormat='Chapters: {0}'}" />
-          <TextBlock Text="{Binding WorkDetails.Summary.SourceUrl, StringFormat='Source: {0}'}" TextWrapping="Wrap" />
+          <TextBlock FontSize="22" FontWeight="Bold" Text="{Binding WorkDetails.Title}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding WorkDetails.Author, StringFormat='Author: {0}'}" />
+          <TextBlock Text="{Binding WorkDetails.Completion, StringFormat='AO3 completion: {0}'}" />
+          <TextBlock Text="{Binding WorkDetails.WordCount, StringFormat='Words: {0}'}" />
+          <TextBlock Text="{Binding WorkDetails.Chapters, StringFormat='Chapters: {0}'}" />
+          <TextBlock Text="{Binding WorkDetails.SourceUrl, StringFormat='Source: {0}'}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkDetails.Description}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkDetails.AuthorNotes, StringFormat='Author notes: {0}'}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding WorkDetails.CategorizedTags}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="app:CategorizedTag">
-                <TextBlock Text="{Binding DisplayText}" />
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock FontWeight="Bold" Text="{Binding Category}" />
+                  <TextBlock Text="{Binding Value}" />
+                </StackPanel>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

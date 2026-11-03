@@ -517,7 +517,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             ReadNullableString(reader, 2),
             ReadNullableString(reader, 3),
             ReadNullableString(reader, 4),
-            (ReadingStatus)reader.GetInt32(5),
+            ((ReadingStatus)reader.GetInt32(5)).ToString(),
             ReadNullableString(reader, 6),
             ReadNullableInt(reader, 7),
             reader.IsDBNull(8) ? null : reader.GetInt32(8) != 0,
