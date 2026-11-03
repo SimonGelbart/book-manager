@@ -207,7 +207,7 @@ public sealed class CapabilityProofTests
                 "A Completed AO3 Work",
                 "A. Writer",
                 "https://archiveofourown.org/works/12345",
-                statsMarkup: "<dt>Published:</dt><dd>2026-01-01</dd><dt>Completed:</dt><dd>2026-02-01</dd><dt>Words:</dt><dd>1,234</dd><dt>Chapters:</dt><dd>10/10</dd>");
+                statsText: "Published: 2026-01-01 Completed: 2026-02-01 Words: 1,234 Chapters: 10/10");
 
             var result = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
                 .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));

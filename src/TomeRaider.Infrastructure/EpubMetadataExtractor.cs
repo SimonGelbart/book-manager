@@ -221,9 +221,7 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
         var prefaceElement = FindAo3Preface(preface);
         var message = prefaceElement?
             .Descendants(XhtmlNamespace + "p")
-            .Where(paragraph => paragraph.Attributes("class").Any(attribute =>
-                attribute.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                    .Contains("message", StringComparer.OrdinalIgnoreCase)))
+            .Where(paragraph => HasClass(paragraph, "message"))
             .FirstOrDefault(paragraph => paragraph.Value.Contains(
                 "originally posted",
                 StringComparison.OrdinalIgnoreCase));
@@ -246,24 +244,37 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
 
     private static string? GetPrefaceStatsText(XDocument? preface)
     {
-        var prefaceElement = FindAo3Preface(preface);
-        var stats = prefaceElement?
-            .Descendants()
-            .FirstOrDefault(element =>
-                string.Equals(element.Name.LocalName, "dl", StringComparison.OrdinalIgnoreCase)
-                && element.Attribute("class")?.Value.Split(
-                    ' ',
-                    StringSplitOptions.RemoveEmptyEntries)
-                    .Contains("stats", StringComparer.OrdinalIgnoreCase) == true);
-        return stats is null
+        var statsValue = FindAo3Preface(preface)?
+            .Descendants(XhtmlNamespace + "dl")
+            .Where(element => HasClass(element, "tags"))
+            .SelectMany(element => element.Elements(XhtmlNamespace + "dt"))
+            .Where(element => string.Equals(
+                element.Value.Trim().TrimEnd(':'),
+                "Stats",
+                StringComparison.OrdinalIgnoreCase))
+            .Select(element => element.ElementsAfterSelf(XhtmlNamespace + "dd").FirstOrDefault())
+            .FirstOrDefault(value => value is not null);
+        return statsValue is null
             ? null
-            : string.Join(
-                " ",
-                stats
-                    .DescendantNodes()
-                    .OfType<XText>()
-                    .Select(node => node.Value.Trim())
-                    .Where(value => !string.IsNullOrWhiteSpace(value)));
+            : GetElementText(statsValue);
+    }
+
+    private static bool HasClass(XElement element, string className)
+    {
+        return element.Attributes("class").Any(attribute =>
+            attribute.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Contains(className, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static string GetElementText(XElement element)
+    {
+        return string.Join(
+            " ",
+            element
+                .DescendantNodes()
+                .OfType<XText>()
+                .Select(node => node.Value.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 
     private static string? FindAo3WorkUrl(string? value)

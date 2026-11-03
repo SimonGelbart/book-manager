@@ -16,7 +16,7 @@ internal static class SyntheticEpub
         string? description = null,
         string? packageSourceUrl = null,
         string? chapterMarkup = null,
-        string? statsMarkup = null)
+        string? statsText = null)
     {
         var path = Path.Combine(directory, fileName);
         using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
@@ -41,7 +41,7 @@ internal static class SyntheticEpub
         var subjects = ao3Url is null
             ? "<dc:subject>General</dc:subject>"
             : "<dc:subject>Fandom: Synthetic Stories</dc:subject><dc:subject>Found Family</dc:subject>";
-        var hasPreface = ao3Url is not null || wordCount is not null || status is not null || statsMarkup is not null;
+        var hasPreface = ao3Url is not null || wordCount is not null || status is not null || statsText is not null;
         var prefaceManifest = hasPreface
             ? "<item id=\"preface\" href=\"preface.xhtml\" media-type=\"application/xhtml+xml\" />"
             : string.Empty;
@@ -49,9 +49,14 @@ internal static class SyntheticEpub
         var prefaceMessage = ao3Url is null
             ? string.Empty
             : $"<p class=\"message\"><a href=\"{ao3Url}\">Originally posted on AO3</a></p>";
-        var prefaceStats = statsMarkup ?? string.Concat(
-            wordCount is null ? string.Empty : $"<dt>Words:</dt><dd>{wordCount}</dd>",
-            status is null ? string.Empty : $"<dt>Status:</dt><dd>{status}</dd>");
+        var prefaceStats = statsText ?? string.Join(
+            " ",
+            new[]
+            {
+                wordCount is null ? null : $"Words: {wordCount}",
+                status is null ? null : $"Status: {status}"
+            }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
         AddEntry(
             archive,
             "OEBPS/content.opf",
@@ -78,7 +83,7 @@ internal static class SyntheticEpub
             AddEntry(
                 archive,
                 "OEBPS/preface.xhtml",
-                $"<html xmlns=\"http://www.w3.org/1999/xhtml\"><body><div id=\"preface\">{prefaceMessage}<dl class=\"stats\">{prefaceStats}</dl></div></body></html>");
+                $"<html xmlns=\"http://www.w3.org/1999/xhtml\"><body><div id=\"preface\">{prefaceMessage}<dl class=\"tags\"><dt>Stats:</dt><dd>{prefaceStats}</dd></dl></div></body></html>");
         }
 
         AddEntry(
