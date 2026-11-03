@@ -44,6 +44,25 @@ public sealed class ArchitectureTests
     }
 
     [Test]
+    public async Task AndroidActivityThemeUsesAnAppCompatBaseTheme()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var stylesPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "TomeRaider.Android",
+            "Resources",
+            "values",
+            "styles.xml");
+        var document = System.Xml.Linq.XDocument.Load(stylesPath);
+        var theme = document.Root?.Elements("style")
+            .Single(style => style.Attribute("name")?.Value == "TomeRaiderTheme");
+
+        await Assert.That(theme?.Attribute("parent")?.Value)
+            .IsEqualTo("Theme.AppCompat.Light.NoActionBar");
+    }
+
+    [Test]
     public async Task ADeliberatelyForbiddenFrameworkReferenceIsRejected()
     {
         var violations = ArchitectureRules.FindPackageReferenceViolations(
