@@ -55,6 +55,40 @@ internal static class ArchitectureRules
                 StringComparer.OrdinalIgnoreCase)
         };
 
+    private static readonly IReadOnlySet<string> EmittedModuleNames =
+        new HashSet<string>(
+            AllowedReferences.Keys.Where(name => name != "TomeRaider.Android"),
+            StringComparer.Ordinal);
+
+    public static IReadOnlyList<string> FindModuleSelectionViolations(
+        IReadOnlyCollection<string> selectedNames,
+        IReadOnlySet<string> requiredNames)
+    {
+        if (selectedNames.Count == 0)
+        {
+            throw new InvalidOperationException("Architecture checks require a non-empty module selection.");
+        }
+
+        var selected = selectedNames.ToHashSet(StringComparer.Ordinal);
+        return requiredNames
+            .Except(selected)
+            .Select(name => $"Missing required production module: {name}")
+            .Concat(
+                selected
+                    .Except(AllowedReferences.Keys)
+                    .Select(name => $"Unknown production module: {name}"))
+            .ToArray();
+    }
+
+    public static IReadOnlyList<string> ReadProductionProjectNames(string repositoryRoot)
+    {
+        return Directory
+            .EnumerateFiles(Path.Combine(repositoryRoot, "src"), "*.csproj", SearchOption.AllDirectories)
+            .Select(path => Path.GetFileNameWithoutExtension(path)!)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
     public static IReadOnlyList<string> FindViolations(IReadOnlyCollection<ProjectDependency> dependencies)
     {
         if (dependencies.Count == 0)
@@ -78,6 +112,9 @@ internal static class ArchitectureRules
             throw new InvalidOperationException("Emitted architecture checks require a non-empty assembly set.");
         }
 
+        var selectionViolations = FindModuleSelectionViolations(
+            assemblies.Select(assembly => assembly.Name).ToArray(),
+            EmittedModuleNames);
         var productionNames = AllowedReferences.Keys.ToHashSet(StringComparer.Ordinal);
         var projectViolations = assemblies
             .SelectMany(assembly => assembly.Assembly
@@ -87,6 +124,13 @@ internal static class ArchitectureRules
                 .Where(reference => !AllowedReferences[assembly.Name].Contains(reference.Reference!))
                 .Select(reference => $"{reference.Assembly} -> {reference.Reference}"))
             .ToArray();
+        var mislabeledAssemblies = assemblies
+            .Where(assembly => !string.Equals(
+                assembly.Name,
+                assembly.Assembly.GetName().Name,
+                StringComparison.Ordinal))
+            .Select(assembly =>
+                $"{assembly.Name} -> selected assembly is {assembly.Assembly.GetName().Name ?? "unnamed"}");
         var frameworkViolations = assemblies
             .SelectMany(assembly => assembly.Assembly
                 .GetReferencedAssemblies()
@@ -95,7 +139,9 @@ internal static class ArchitectureRules
                 .Where(reference => IsForbiddenFrameworkReference(reference.Assembly, reference.Reference!))
                 .Select(reference => $"{reference.Assembly} -> {reference.Reference}"));
 
-        return projectViolations
+        return selectionViolations
+            .Concat(mislabeledAssemblies)
+            .Concat(projectViolations)
             .Concat(frameworkViolations)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
