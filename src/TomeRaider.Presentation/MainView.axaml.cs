@@ -21,12 +21,14 @@ public partial class MainView : UserControl
         AttachedToVisualTree += OnAttachedToVisualTree;
     }
 
-    private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    private async void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel is not null && DataContext is null)
         {
-            DataContext = new MainViewModel(sessionFactory(topLevel.StorageProvider));
+            var viewModel = new MainViewModel(sessionFactory(topLevel.StorageProvider));
+            DataContext = viewModel;
+            await viewModel.InitializeAsync();
         }
     }
 
@@ -51,6 +53,39 @@ public partial class MainView : UserControl
         if (DataContext is MainViewModel viewModel)
         {
             await viewModel.SaveReadingAsync();
+        }
+    }
+
+    private void RequestClearCollection(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.RequestClearCollection();
+        }
+    }
+
+    private async void ConfirmClearCollection(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            await viewModel.ConfirmClearCollectionAsync();
+        }
+    }
+
+    private void CancelClearCollection(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.CancelClearCollection();
+        }
+    }
+
+    private async void SelectWork(object? sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is ListBox { SelectedItem: WorkSummaryViewModel work })
+        {
+            await viewModel.SelectWorkAsync(work.Id);
         }
     }
 }
