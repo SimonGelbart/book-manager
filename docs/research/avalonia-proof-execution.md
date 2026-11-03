@@ -66,12 +66,12 @@ The dependency installer supplied the local Android SDK/JDK used for the build. 
 
 ## Review follow-up validation
 
-The review fixes were revalidated on 2026-11-01 in the requested Pop!_OS 24.04 workspace with SDK 10.0.114:
+The review fixes and generic-EPUB regressions were revalidated on 2026-11-03 in the requested Pop!_OS 24.04 workspace with SDK 10.0.114:
 
 | Check | Actual command/evidence | Result |
 |---|---|---|
 | Locked solution restore | `dotnet restore TomeRaider.slnx --locked-mode` | Passed for all nine projects. |
-| Application and presentation regressions | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --no-restore` | Passed: 8/8 tests, 0 failed, 0 skipped. Includes documented AO3 preface extraction, unrelated-description and chapter-link identity isolation, and all-failed/partial-failure presentation outcomes. |
+| Application and presentation regressions | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --no-restore` | Passed: 12/12 tests, 0 failed, 0 skipped. Includes documented AO3 preface completion stats, generic-chapter recommendation and narrative isolation, image-spine fallback import, unrelated-description and chapter-link identity isolation, and all-failed/partial-failure presentation outcomes. |
 | Architecture regressions | `dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --no-restore` | Passed: 7/7 tests, 0 failed, 0 skipped. Includes forbidden package/framework dependency rejection. |
 | Desktop build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --no-restore` | Passed: 0 warnings, 0 errors. |
 | Android build in this workspace | `dotnet build src/TomeRaider.Android/TomeRaider.Android.csproj --no-restore` | Blocked before compilation with XA5300: no Android SDK directory was found. |

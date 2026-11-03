@@ -21,6 +21,9 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
     private static readonly Regex StatusPattern = new(
         @"\bstatus\s*:\s*(complete|unfinished|in[\s-]?progress|work\s+in\s+progress)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex CompletedDatePattern = new(
+        @"\bcompleted\s*:\s*\d{4}-\d{2}-\d{2}\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public Task<EpubMetadata> ExtractAsync(
         Stream epub,
@@ -78,11 +81,11 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
             .Where(subject => !string.IsNullOrWhiteSpace(subject))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        var prefaceText = GetPrefaceText(preface);
+        var prefaceStatsText = GetPrefaceStatsText(preface);
         var wordCount = FindIntegerMeta(metadata, "word-count", "ao3:word-count", "words")
-            ?? FindPrefaceWordCount(prefaceText);
+            ?? FindPrefaceWordCount(prefaceStatsText);
         var status = FindMeta(metadata, "status", "ao3:status", "completion-status")
-            ?? FindPrefaceStatus(prefaceText);
+            ?? FindPrefaceStatus(prefaceStatsText);
         bool? isComplete = null;
         if (status is not null)
         {
@@ -131,14 +134,44 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
             return null;
         }
 
-        var href = package
+        var manifestItems = package
             .Root?
             .Element(PackageNamespace + "manifest")?
             .Elements(PackageNamespace + "item")
-            .Where(item => string.Equals((string?)item.Attribute("id"), firstId, StringComparison.Ordinal))
-            .Select(item => (string?)item.Attribute("href"))
-            .FirstOrDefault(href => !string.IsNullOrWhiteSpace(href));
-        if (href is null)
+            .ToArray();
+        var item = manifestItems?.FirstOrDefault(candidate =>
+            string.Equals((string?)candidate.Attribute("id"), firstId, StringComparison.Ordinal));
+        if (item is null)
+        {
+            return null;
+        }
+
+        var visitedIds = new HashSet<string>(StringComparer.Ordinal);
+        while (item is not null)
+        {
+            var itemId = (string?)item.Attribute("id");
+            if (string.IsNullOrWhiteSpace(itemId) || !visitedIds.Add(itemId))
+            {
+                return null;
+            }
+
+            if (string.Equals(
+                    (string?)item.Attribute("media-type"),
+                    "application/xhtml+xml",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            var fallbackId = (string?)item.Attribute("fallback");
+            item = string.IsNullOrWhiteSpace(fallbackId)
+                ? null
+                : manifestItems?.FirstOrDefault(candidate =>
+                    string.Equals((string?)candidate.Attribute("id"), fallbackId, StringComparison.Ordinal));
+        }
+
+        var href = (string?)item?.Attribute("href");
+        if (string.IsNullOrWhiteSpace(href))
         {
             return null;
         }
@@ -185,12 +218,15 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
 
     private static string? FindAo3WorkUrlFromPreface(XDocument? preface)
     {
-        var message = preface?
+        var prefaceElement = FindAo3Preface(preface);
+        var message = prefaceElement?
             .Descendants(XhtmlNamespace + "p")
             .Where(paragraph => paragraph.Attributes("class").Any(attribute =>
                 attribute.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                     .Contains("message", StringComparer.OrdinalIgnoreCase)))
-            .FirstOrDefault();
+            .FirstOrDefault(paragraph => paragraph.Value.Contains(
+                "originally posted",
+                StringComparison.OrdinalIgnoreCase));
         return message?
             .Descendants(XhtmlNamespace + "a")
             .Select(anchor => (string?)anchor.Attribute("href"))
@@ -198,17 +234,32 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
             .FirstOrDefault(url => url is not null);
     }
 
-    private static string? GetPrefaceText(XDocument? preface)
+    private static XElement? FindAo3Preface(XDocument? document)
     {
-        var prefaceElement = preface?
+        return document?
             .Descendants(XhtmlNamespace + "div")
-            .FirstOrDefault(element => string.Equals((string?)element.Attribute("id"), "preface", StringComparison.Ordinal));
-        var textSource = prefaceElement ?? preface?.Root;
-        return textSource is null
+            .FirstOrDefault(element => string.Equals(
+                (string?)element.Attribute("id"),
+                "preface",
+                StringComparison.Ordinal));
+    }
+
+    private static string? GetPrefaceStatsText(XDocument? preface)
+    {
+        var prefaceElement = FindAo3Preface(preface);
+        var stats = prefaceElement?
+            .Descendants()
+            .FirstOrDefault(element =>
+                string.Equals(element.Name.LocalName, "dl", StringComparison.OrdinalIgnoreCase)
+                && element.Attribute("class")?.Value.Split(
+                    ' ',
+                    StringSplitOptions.RemoveEmptyEntries)
+                    .Contains("stats", StringComparer.OrdinalIgnoreCase) == true);
+        return stats is null
             ? null
             : string.Join(
                 " ",
-                textSource
+                stats
                     .DescendantNodes()
                     .OfType<XText>()
                     .Select(node => node.Value.Trim())
@@ -247,7 +298,11 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
     private static string? FindPrefaceStatus(string? prefaceText)
     {
         var match = prefaceText is null ? null : StatusPattern.Match(prefaceText);
-        return match?.Success == true ? match.Groups[1].Value : null;
+        return match?.Success == true
+            ? match.Groups[1].Value
+            : prefaceText is not null && CompletedDatePattern.IsMatch(prefaceText)
+                ? "Complete"
+                : null;
     }
 
     private static string? FindMeta(XElement metadata, params string[] names)

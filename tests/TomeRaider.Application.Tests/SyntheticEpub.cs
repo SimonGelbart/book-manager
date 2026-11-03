@@ -14,7 +14,9 @@ internal static class SyntheticEpub
         int? wordCount = null,
         string? status = null,
         string? description = null,
-        string? packageSourceUrl = null)
+        string? packageSourceUrl = null,
+        string? chapterMarkup = null,
+        string? statsMarkup = null)
     {
         var path = Path.Combine(directory, fileName);
         using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
@@ -39,7 +41,7 @@ internal static class SyntheticEpub
         var subjects = ao3Url is null
             ? "<dc:subject>General</dc:subject>"
             : "<dc:subject>Fandom: Synthetic Stories</dc:subject><dc:subject>Found Family</dc:subject>";
-        var hasPreface = ao3Url is not null || wordCount is not null || status is not null;
+        var hasPreface = ao3Url is not null || wordCount is not null || status is not null || statsMarkup is not null;
         var prefaceManifest = hasPreface
             ? "<item id=\"preface\" href=\"preface.xhtml\" media-type=\"application/xhtml+xml\" />"
             : string.Empty;
@@ -47,7 +49,7 @@ internal static class SyntheticEpub
         var prefaceMessage = ao3Url is null
             ? string.Empty
             : $"<p class=\"message\"><a href=\"{ao3Url}\">Originally posted on AO3</a></p>";
-        var prefaceStats = string.Concat(
+        var prefaceStats = statsMarkup ?? string.Concat(
             wordCount is null ? string.Empty : $"<dt>Words:</dt><dd>{wordCount}</dd>",
             status is null ? string.Empty : $"<dt>Status:</dt><dd>{status}</dd>");
         AddEntry(
@@ -82,7 +84,53 @@ internal static class SyntheticEpub
         AddEntry(
             archive,
             "OEBPS/chapter.xhtml",
-            "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body><p>Synthetic fixture.</p></body></html>");
+            $"<html xmlns=\"http://www.w3.org/1999/xhtml\"><body>{chapterMarkup ?? "<p>Synthetic fixture.</p>"}</body></html>");
+        return path;
+    }
+
+    public static string CreateImageFirstSpineWithFallback(
+        string directory,
+        string fileName,
+        string title,
+        string author)
+    {
+        var path = Path.Combine(directory, fileName);
+        using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
+        AddEntry(
+            archive,
+            "META-INF/container.xml",
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+              <rootfiles>
+                <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml" />
+              </rootfiles>
+            </container>
+            """);
+        AddEntry(
+            archive,
+            "OEBPS/content.opf",
+            $"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+              <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                <dc:identifier>urn:uuid:{Guid.NewGuid():D}</dc:identifier>
+                <dc:title>{title}</dc:title>
+                <dc:creator>{author}</dc:creator>
+                <dc:subject>General</dc:subject>
+              </metadata>
+              <manifest>
+                <item id="cover-image" href="cover.jpg" media-type="image/jpeg" fallback="cover-xhtml" />
+                <item id="cover-xhtml" href="cover.xhtml" media-type="application/xhtml+xml" />
+              </manifest>
+              <spine><itemref idref="cover-image" /></spine>
+            </package>
+            """);
+        AddEntry(archive, "OEBPS/cover.jpg", [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+        AddEntry(
+            archive,
+            "OEBPS/cover.xhtml",
+            "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body><p>Cover fallback.</p></body></html>");
         return path;
     }
 
@@ -90,5 +138,11 @@ internal static class SyntheticEpub
     {
         using var writer = new StreamWriter(archive.CreateEntry(name).Open(), Encoding.UTF8);
         writer.Write(content);
+    }
+
+    private static void AddEntry(ZipArchive archive, string name, byte[] content)
+    {
+        using var stream = archive.CreateEntry(name).Open();
+        stream.Write(content);
     }
 }

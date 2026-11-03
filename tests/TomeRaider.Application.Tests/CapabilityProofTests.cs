@@ -156,6 +156,125 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task GenericChapterRecommendationsDoNotCreateAo3IdentityCollisions()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(
+                workspace,
+                "generic.epub",
+                "A Generic Work",
+                "A. Reader",
+                chapterMarkup: "<p class=\"message\"><a href=\"https://archiveofourown.org/works/12345\">Recommendation</a></p>");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var generic = firstImport.Items.Single(item => item.Metadata?.Title == "A Generic Work").Work!;
+            await application.SaveReadingRecordAsync(generic.Id, ReadingStatus.Reading, "Keep this note.");
+
+            SyntheticEpub.Create(
+                workspace,
+                "actual.epub",
+                "The Actual AO3 Work",
+                "A. Writer",
+                "https://archiveofourown.org/works/12345",
+                packageSourceUrl: "https://archiveofourown.org/works/12345");
+            var secondImport = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var actual = secondImport.Items.Single(item => item.Metadata?.Title == "The Actual AO3 Work");
+
+            await Assert.That(firstImport.Items.Single().Metadata!.Ao3WorkId).IsNull();
+            await Assert.That(actual.Metadata!.Ao3WorkId).IsEqualTo("12345");
+            await Assert.That(actual.Work!.Id).IsNotEqualTo(generic.Id);
+            var recovered = await application.GetReadingRecordAsync(generic.Id);
+            await Assert.That(recovered!.PersonalNote).IsEqualTo("Keep this note.");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ExtractsCompletionFromDocumentedAo3Stats()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(
+                workspace,
+                "completed.epub",
+                "A Completed AO3 Work",
+                "A. Writer",
+                "https://archiveofourown.org/works/12345",
+                statsMarkup: "<dt>Published:</dt><dd>2026-01-01</dd><dt>Completed:</dt><dd>2026-02-01</dd><dt>Words:</dt><dd>1,234</dd><dt>Chapters:</dt><dd>10/10</dd>");
+
+            var result = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
+                .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var metadata = result.Items.Single().Metadata!;
+
+            await Assert.That(metadata.WordCount).IsEqualTo(1234);
+            await Assert.That(metadata.IsComplete).IsTrue();
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task GenericNarrativeStatsRemainUnknown()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(
+                workspace,
+                "generic.epub",
+                "A Generic Work",
+                "A. Reader",
+                chapterMarkup: "<p>Words: 900. Status: Complete.</p>");
+
+            var result = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
+                .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var metadata = result.Items.Single().Metadata!;
+
+            await Assert.That(result.Succeeded).IsTrue();
+            await Assert.That(metadata.WordCount).IsNull();
+            await Assert.That(metadata.IsComplete).IsNull();
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ImageFirstSpineItemWithXhtmlFallbackStillImportsBaseMetadata()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.CreateImageFirstSpineWithFallback(
+                workspace,
+                "image-first.epub",
+                "A Generic Work",
+                "A. Reader");
+
+            var result = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
+                .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+
+            await Assert.That(result.Succeeded).IsTrue();
+            await Assert.That(result.Items).Count().IsEqualTo(1);
+            await Assert.That(result.Items.Single().Metadata!.Title).IsEqualTo("A Generic Work");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ReportsAllFailedImportsWithFileAndErrorDetails()
     {
         var workspace = CreateWorkspace();
