@@ -18,6 +18,40 @@ Use Testcontainers when an implemented integration depends on a containerized se
 
 Ordinary embedded-SQLite behavior tests and architecture checks should be runnable without a container runtime. Real platform checks still establish Android SQLite asset loading, document grants, and other host-specific behavior.
 
+## Reproducible quality checks
+
+The pinned TUnit package brings the Microsoft.Testing.Extensions.CodeCoverage
+extension transitively, and the repository selects Microsoft.Testing.Platform in
+`global.json`. Generate an uncommitted Cobertura report with:
+
+```sh
+dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj \
+  --configuration Release --no-restore --coverage \
+  --coverage-output artifacts/coverage/application.cobertura.xml \
+  --coverage-output-format cobertura
+```
+
+Review the overall and per-module line/branch rates in the report, then inspect
+uncovered behavior and assertion strength. Do not use the aggregate percentage
+as a quality threshold by itself. Focused TUnit runs use
+`--treenode-filter`, not VSTest's `--filter` option.
+
+Mutation testing is a manual bounded check because Stryker.NET's MTP runner is
+still preview functionality. Restore the pinned local tool, then run the
+committed scope from the Application test project directory:
+
+```sh
+dotnet tool restore
+cd tests/TomeRaider.Application.Tests
+dotnet tool run dotnet-stryker --config-file stryker-config.json
+```
+
+The configuration targets `WorkAssociationPolicy` and the Application mutation
+gate with Stryker.NET 5.0.0, TUnit's MTP runner, and the Release build. Keep the
+generated report under `StrykerOutput/`; review surviving mutants before
+considering a numerical threshold or moving the campaign into every pull
+request.
+
 ## Required architecture checks
 
 Implement automated checks for the dependency rules in [ADR 0003](../adr/0003-clean-architecture-without-cqrs.md). Run them in the standard automated test workflow and CI once test projects are scaffolded.
