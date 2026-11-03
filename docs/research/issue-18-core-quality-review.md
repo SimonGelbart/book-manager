@@ -1,7 +1,7 @@
 # Issue #18 — core quality review
 
-Date: 2026-11-03. Reviewed implementation commit: `6ee626a` (the final code
-commit before this report update).
+Date: 2026-11-03. Reviewed implementation commits through `63df474` (the
+final code refactor before this report update).
 Baseline commit: `82d312f` (`main` before this branch's changes). Scope: the
 implemented work-association/import-review slice and its managed test path.
 Native Android, desktop-picker, and Windows runtime evidence remains in the
@@ -31,6 +31,22 @@ ordering invariant visible in one place. The focused fixes are in
 [ac70a2a](https://github.com/SimonGelbart/book-manager/commit/ac70a2a), and
 [6ee626a](https://github.com/SimonGelbart/book-manager/commit/6ee626a).
 
+The follow-up refactor was deliberately incremental. Application contracts are
+split by concern in [0633da3](https://github.com/SimonGelbart/book-manager/commit/0633da3),
+presentation operation serialization and selection ordering are in
+[ad28c53](https://github.com/SimonGelbart/book-manager/commit/ad28c53), and the
+SQLite adapter is split into focused schema, work-read, review, association,
+and import-persistence modules across
+[242a155](https://github.com/SimonGelbart/book-manager/commit/242a155),
+[def40f8](https://github.com/SimonGelbart/book-manager/commit/def40f8),
+[811e501](https://github.com/SimonGelbart/book-manager/commit/811e501),
+[a8e189e](https://github.com/SimonGelbart/book-manager/commit/a8e189e),
+[fc2cb9f](https://github.com/SimonGelbart/book-manager/commit/fc2cb9f), and
+[63df474](https://github.com/SimonGelbart/book-manager/commit/63df474).
+The public `IWorkCatalogue` interface remains cohesive by design; it was not
+fragmented into shallow CQRS-style interfaces because the current Application
+caller needs the whole catalogue and there is only one production adapter.
+
 The final review also found that an unknown emitted-module label could be
 detected and then indexed into the allowed-reference map, throwing before a
 diagnostic was returned. The architecture check now evaluates dependency edges
@@ -46,9 +62,9 @@ The resolved test stack is TUnit `1.77.0`, Microsoft.Testing.Platform
 |---|---|---|
 | Locked restores | `dotnet restore tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --locked-mode`; same for `TomeRaider.Architecture.Tests` | Passed: 5 and 7 projects restored, 0 errors/warnings. |
 | Release desktop build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --configuration Release --no-restore` | Passed: 6 projects, 0 errors, 0 warnings. |
-| Application suite | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-restore --no-build --minimum-expected-tests 39` | Passed: 39/39, 0 failed, 0 skipped. |
+| Application suite | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-restore --minimum-expected-tests 40` | Passed: 40/40, 0 failed, 0 skipped. |
 | Architecture suite | `dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --configuration Release --no-restore --no-build --minimum-expected-tests 11` | Passed: 11/11, 0 failed, 0 skipped. |
-| Cobertura coverage | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-restore --coverage --coverage-output application.cobertura.xml --coverage-output-format cobertura` | Passed; report generated under the test project's `TestResults` directory. |
+| Cobertura coverage | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-restore --coverage --coverage-output final-application.cobertura.xml --coverage-output-format cobertura` | Passed; report generated under the test project's `TestResults` directory. |
 
 The first architecture `--no-build` check used a stale Release binary and
 correctly failed its minimum-test policy at 8 tests. Rebuilding the changed
@@ -58,15 +74,15 @@ regression brings the reviewed result to 11/11 above.
 ### Coverage baseline and final report
 
 Coverage is recorded as line rate / branch rate. The baseline was collected at
-`82d312f`; the final report was collected after the focused fixes. No numerical
-threshold is proposed from this report alone.
+`82d312f`; the final report was collected after the incremental refactors. No
+numerical threshold is proposed from this report alone.
 
 | Module | Baseline | Final |
 |---|---:|---:|
-| Overall | 82.07% / 64.84% (1,748/2,130 lines; 402/620 branches) | 83.42% / 65.68% (1,474/1,767 lines; 400/609 branches) |
+| Overall | 82.07% / 64.84% (1,748/2,130 lines; 402/620 branches) | 84.16% / 66.23% (1,509/1,793 lines; 406/613 branches) |
 | Application | 99.23% / 86.11% | 99.00% / 86.11% |
-| Infrastructure | 95.88% / 74.63% | 97.60% / 75.70% |
-| Presentation | 43.69% / 39.89% | 42.34% / 40.23% |
+| Infrastructure | 95.88% / 74.63% | 97.74% / 75.70% |
+| Presentation | 43.69% / 39.89% | 44.39% / 42.70% |
 | Domain | 0% / 0% | 0% / 0% |
 
 The aggregate is not a quality claim. Application and Infrastructure have
@@ -95,7 +111,7 @@ one survived. The survivor changed `sourceMatches > 1` to
 `sourceMatches >= 1`. The conflict-review test now asserts the exact reason,
 and the rerun killed that mutation.
 
-The final committed-scope run discovered 39 tests and created 54 mutants. Of
+The final committed-scope run discovered 40 tests and created 54 mutants. Of
 those, 18 were ignored by scope/block filtering; 36 were tested, 34 were
 killed, 0 survived, and 2 timed out. Stryker reported a 100.00% mutation score.
 Both timeouts were block-removal mutations of the centralized
@@ -130,13 +146,18 @@ so the result is useful evidence but is not yet a CI quality threshold.
   outside it, Presentation depends on Application contracts, and hosts compose
   the outer implementations. No CQRS split was introduced.
 
+### Resolved — readability and locality
+
+- Application records and ports are separated by concern rather than gathered
+  in one contract file.
+- `MainViewModel` has one serialization/error-handling seam, and selection is
+  tested as waiting behind an active import.
+- SQLite schema/migration, work reads, import persistence, import reviews, and
+  association queries now have separate focused implementations. The original
+  catalogue adapter file is 115 lines; the largest focused file is 357 lines.
+
 ### Remaining, nonblocking
 
-- [SqliteCatalogue.cs](../../src/TomeRaider.Infrastructure/SqliteCatalogue.cs)
-  remains a large adapter combining schema migration, SQL commands, review
-  persistence, row mapping, and catalogue queries. It is coherent as the
-  current SQLite seam, but should be split by responsibility before versions,
-  reconciliation, and filtering make the file harder to navigate.
 - [Work.cs](../../src/TomeRaider.Domain/Work.cs) has no direct behavior coverage
   and the current SQLite adapter stores reading fields directly in rows rather
   than constructing the domain entity. Add domain-level behavior tests and
@@ -149,6 +170,9 @@ so the result is useful evidence but is not yet a CI quality threshold.
 - Broaden mutation scope to the SQLite association/persistence guards after the
   version and rescan features land. Do not add a numerical threshold until that
   larger baseline has been measured and reviewed.
+- Keep `IWorkCatalogue` cohesive until a second adapter or an independent
+  caller makes a smaller interface valuable; split it only when that seam has
+  real leverage.
 
 All automated fixtures used here are synthetic and temporary. No private EPUB,
 identifying metadata, or narrative was added to the report or repository.
