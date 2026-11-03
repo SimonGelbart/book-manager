@@ -1,6 +1,7 @@
 # Issue #18 — core quality review
 
-Date: 2026-11-03. Reviewed implementation commit: `cbe9127`.
+Date: 2026-11-03. Reviewed implementation commit: `6ee626a` (the final code
+commit before this report update).
 Baseline commit: `82d312f` (`main` before this branch's changes). Scope: the
 implemented work-association/import-review slice and its managed test path.
 Native Android, desktop-picker, and Windows runtime evidence remains in the
@@ -8,7 +9,7 @@ separate [capability-proof record](avalonia-proof-execution.md).
 
 ## Result
 
-The checkpoint found one correctness defect and two test-structure gaps. The
+The checkpoint found two correctness defects and two test-structure gaps. The
 defect was that `CatalogueApplication.SaveAsReadAsync` bypassed the mutation
 gate used by import, clear, and ordinary reading-record writes. The fix routes
 it through the same gate and adds a public-boundary regression for concurrent
@@ -27,7 +28,13 @@ into one helper. This makes the import, save, review-resolution, and clear
 ordering invariant visible in one place. The focused fixes are in
 [0fb16b5](https://github.com/SimonGelbart/book-manager/commit/0fb16b5),
 [65dea30](https://github.com/SimonGelbart/book-manager/commit/65dea30), and
-[ac70a2a](https://github.com/SimonGelbart/book-manager/commit/ac70a2a).
+[ac70a2a](https://github.com/SimonGelbart/book-manager/commit/ac70a2a), and
+[6ee626a](https://github.com/SimonGelbart/book-manager/commit/6ee626a).
+
+The final review also found that an unknown emitted-module label could be
+detected and then indexed into the allowed-reference map, throwing before a
+diagnostic was returned. The architecture check now evaluates dependency edges
+only for recognized labels and reports the unknown selection explicitly.
 
 ## Actual validation
 
@@ -40,12 +47,13 @@ The resolved test stack is TUnit `1.77.0`, Microsoft.Testing.Platform
 | Locked restores | `dotnet restore tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --locked-mode`; same for `TomeRaider.Architecture.Tests` | Passed: 5 and 7 projects restored, 0 errors/warnings. |
 | Release desktop build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --configuration Release --no-restore` | Passed: 6 projects, 0 errors, 0 warnings. |
 | Application suite | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-restore --no-build --minimum-expected-tests 39` | Passed: 39/39, 0 failed, 0 skipped. |
-| Architecture suite | `dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --configuration Release --no-restore --no-build --minimum-expected-tests 10` | Passed: 10/10, 0 failed, 0 skipped. |
+| Architecture suite | `dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --configuration Release --no-restore --no-build --minimum-expected-tests 11` | Passed: 11/11, 0 failed, 0 skipped. |
 | Cobertura coverage | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-restore --coverage --coverage-output application.cobertura.xml --coverage-output-format cobertura` | Passed; report generated under the test project's `TestResults` directory. |
 
 The first architecture `--no-build` check used a stale Release binary and
-correctly failed its minimum-test policy at 8 tests; rebuilding the changed
-architecture project and rerunning produced the passing 10-test result above.
+correctly failed its minimum-test policy at 8 tests. Rebuilding the changed
+architecture project produced 10 passing tests; the final unknown-selection
+regression brings the reviewed result to 11/11 above.
 
 ### Coverage baseline and final report
 
@@ -66,6 +74,11 @@ strong managed-path exercise, while Domain has no direct behavior coverage and
 Presentation coverage excludes Avalonia event-handler/XAML execution. The
 review therefore added assertions and boundary/concurrency tests rather than a
 percentage gate.
+
+Coverage exclusions/limits: the Microsoft coverage extension excludes the test
+assembly by default; no source exclusion was configured. The Android emitted
+assembly was not loaded by the plain `net10.0` architecture host, and generated
+Avalonia/XAML/native platform execution was not part of this managed report.
 
 ### Mutation baseline and final report
 
