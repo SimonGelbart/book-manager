@@ -594,8 +594,9 @@ public sealed class CapabilityProofTests
             SyntheticEpub.Create(workspace, "conflict.epub", "A Different Work", "A. Writer", sourceUrl);
             var result = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var reviewItem = result.Items.Single(item => item.File.DisplayName == "conflict.epub");
-            var reviews = await application.GetImportReviewsAsync();
-            var works = await application.GetWorksAsync();
+            var reopenedApplication = CreateApplication(databasePath);
+            var reviews = await reopenedApplication.GetImportReviewsAsync();
+            var works = await reopenedApplication.GetWorksAsync();
 
             await Assert.That(reviewItem.NeedsReview).IsTrue();
             await Assert.That(reviewItem.Review!.File.Reference).IsEqualTo(Path.Combine(workspace, "conflict.epub"));

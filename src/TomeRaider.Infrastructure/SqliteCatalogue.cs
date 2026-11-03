@@ -157,6 +157,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 DeserializeMetadata(reader.GetString(3)),
                 reader.GetString(4)));
         }
+        await reader.DisposeAsync();
 
         var reviews = new List<ImportReview>(reviewRows.Count);
         foreach (var row in reviewRows)
@@ -648,11 +649,12 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         IReadOnlyList<ImportReviewCandidate> candidates,
         CancellationToken cancellationToken)
     {
-        var reviewId = await FindImportReviewIdAsync(
+        var existingReviewId = await FindImportReviewIdAsync(
             connection,
             transaction,
             sourceFile.Reference,
-            cancellationToken) ?? Guid.NewGuid();
+            cancellationToken);
+        var reviewId = existingReviewId ?? Guid.NewGuid();
         var reason = candidates.Count > 1
             ? "More than one existing work has this source identifier."
             : "The source identifier matches an existing work, but title or author metadata conflicts.";
@@ -660,11 +662,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
 
         await using var save = connection.CreateCommand();
         save.Transaction = transaction;
-        save.CommandText = await FindImportReviewIdAsync(
-                connection,
-                transaction,
-                sourceFile.Reference,
-                cancellationToken) is null
+        save.CommandText = existingReviewId is null
             ? """
               INSERT INTO ImportReviews (Id, FileReference, DisplayName, MetadataJson, Reason, CreatedAt)
               VALUES ($id, $fileReference, $displayName, $metadataJson, $reason, $createdAt);

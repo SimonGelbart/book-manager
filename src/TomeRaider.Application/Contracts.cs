@@ -127,7 +127,7 @@ public sealed record ImportItemResult(
         ? $"{File.DisplayName}: {Work!.Title}"
         : NeedsReview
             ? $"{File.DisplayName}: Needs review"
-        : $"{File.DisplayName}: {Error ?? "Import failed."}";
+            : $"{File.DisplayName}: {Error ?? "Import failed."}";
 }
 
 public sealed record ImportResult(
