@@ -24,6 +24,9 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
     private static readonly Regex CompletedDatePattern = new(
         @"\bcompleted\s*:\s*\d{4}-\d{2}-\d{2}\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex OriginalPostedMessagePattern = new(
+        @"\b(?:originally\s+posted|posted\s+originally)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public Task<EpubMetadata> ExtractAsync(
         Stream epub,
@@ -222,9 +225,7 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
         var message = prefaceElement?
             .Descendants(XhtmlNamespace + "p")
             .Where(paragraph => HasClass(paragraph, "message"))
-            .FirstOrDefault(paragraph => paragraph.Value.Contains(
-                "originally posted",
-                StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(paragraph => OriginalPostedMessagePattern.IsMatch(paragraph.Value));
         return message?
             .Descendants(XhtmlNamespace + "a")
             .Select(anchor => (string?)anchor.Attribute("href"))

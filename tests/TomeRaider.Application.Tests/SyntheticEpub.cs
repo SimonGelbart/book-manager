@@ -48,7 +48,7 @@ internal static class SyntheticEpub
         var prefaceSpine = hasPreface ? "<itemref idref=\"preface\" />" : string.Empty;
         var prefaceMessage = ao3Url is null
             ? string.Empty
-            : $"<p class=\"message\"><a href=\"{ao3Url}\">Originally posted on AO3</a></p>";
+            : $"<p class=\"message\">Posted originally on the <a href=\"http://archiveofourown.org/\">Archive of Our Own</a> at <a href=\"{ao3Url}\">{ao3Url}</a>.</p>";
         var prefaceStats = statsText ?? string.Join(
             " ",
             new[]
