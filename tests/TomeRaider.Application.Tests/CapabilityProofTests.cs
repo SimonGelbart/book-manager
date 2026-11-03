@@ -1244,6 +1244,46 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task QueuedWorkSelectionWaitsForAnActiveImport()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
+            var secondPath = SyntheticEpub.Create(workspace, "second.epub", "Second Work", "B. Reader");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    new SourceFolder(workspace, "First folder"),
+                    [new SourceFile(firstPath, "first.epub")]));
+            var firstWorkId = firstImport.Items.Single().Work!.Id;
+            var blockingSource = new BlockingFileSource(
+                new SourceFolder(workspace, "Second folder"),
+                new SourceFile(secondPath, "second.epub"));
+            var viewModel = new MainViewModel(new CatalogueSession(application, blockingSource));
+
+            await viewModel.InitializeAsync();
+            var importTask = viewModel.SelectFolderAndImportAsync();
+            await blockingSource.EnumerationStarted;
+            var selectionTask = viewModel.SelectWorkAsync(firstWorkId);
+            await Task.Yield();
+
+            var selectionCompletedBeforeImportReleased = selectionTask.IsCompleted;
+            blockingSource.ReleaseEnumeration();
+            await importTask;
+            await selectionTask;
+
+            await Assert.That(selectionCompletedBeforeImportReleased).IsFalse();
+            await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ViewModelFormatsHtmlDescriptionsAndGroupsCategorizedTags()
     {
         var workspace = CreateWorkspace();
