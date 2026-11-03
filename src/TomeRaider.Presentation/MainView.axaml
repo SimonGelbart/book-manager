@@ -40,6 +40,11 @@
                 <TextBlock Text="{Binding Author, StringFormat='Author: {0}'}" />
                 <TextBlock Text="{Binding Ao3WorkId, StringFormat='AO3 work: {0}'}" />
                 <TextBlock Text="{Binding SourceUrl, StringFormat='Source: {0}'}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Description, StringFormat='Description: {0}'}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding AuthorNotes, StringFormat='Author notes: {0}'}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding WordCount, StringFormat='Words: {0}'}" />
+                <TextBlock Text="{Binding Chapters, StringFormat='Chapters: {0}'}" />
+                <TextBlock Text="{Binding Tags, StringFormat='Tags: {0}'}" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding Reason}" TextWrapping="Wrap" />
                 <Button Content="Identify as a new work" Click="ResolveReviewAsNew" HorizontalAlignment="Left" />
                 <TextBlock FontWeight="Bold" Text="Possible existing works" />

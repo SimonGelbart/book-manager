@@ -591,7 +591,13 @@ public sealed class CapabilityProofTests
             var original = firstImport.Items.Single(item => item.File.DisplayName == "original.epub").Work!;
             await application.SaveReadingRecordAsync(original.Id, ReadingStatus.Read, "Keep this record.");
 
-            SyntheticEpub.Create(workspace, "conflict.epub", "A Different Work", "A. Writer", sourceUrl);
+            SyntheticEpub.Create(
+                workspace,
+                "conflict.epub",
+                "A Different Work",
+                "A. Writer",
+                sourceUrl,
+                description: "Conflicting summary.");
             var result = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var reviewItem = result.Items.Single(item => item.File.DisplayName == "conflict.epub");
             var reopenedApplication = CreateApplication(databasePath);
@@ -601,6 +607,7 @@ public sealed class CapabilityProofTests
             await Assert.That(reviewItem.NeedsReview).IsTrue();
             await Assert.That(reviewItem.Review!.File.Reference).IsEqualTo(Path.Combine(workspace, "conflict.epub"));
             await Assert.That(reviewItem.Review.Metadata.Title).IsEqualTo("A Different Work");
+            await Assert.That(reviews[0].Metadata.Description).IsEqualTo("Conflicting summary.");
             await Assert.That(reviews).Count().IsEqualTo(1);
             await Assert.That(reviews[0].Candidates).Count().IsEqualTo(1);
             await Assert.That(reviews[0].Candidates[0].WorkId).IsEqualTo(original.Id);
@@ -650,7 +657,13 @@ public sealed class CapabilityProofTests
             var original = firstImport.Items.Single(item => item.File.DisplayName == "original.epub").Work!;
             await application.SaveReadingRecordAsync(original.Id, ReadingStatus.Read, "Keep this record.");
 
-            SyntheticEpub.Create(workspace, "conflict.epub", "A Different Work", "A. Writer", sourceUrl);
+            SyntheticEpub.Create(
+                workspace,
+                "conflict.epub",
+                "A Different Work",
+                "A. Writer",
+                sourceUrl,
+                description: "Conflicting summary.");
             var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var review = import.Items.Single(item => item.File.DisplayName == "conflict.epub").Review!;
             var resolved = await application.ResolveImportReviewToExistingWorkAsync(review.Id, original.Id);
@@ -781,7 +794,13 @@ public sealed class CapabilityProofTests
             await viewModel.SelectFolderAndImportAsync();
             var original = viewModel.Works.Single();
             await application.SaveReadingRecordAsync(original.Id, ReadingStatus.Read, "Keep this record.");
-            SyntheticEpub.Create(workspace, "conflict.epub", "A Different Work", "A. Writer", sourceUrl);
+            SyntheticEpub.Create(
+                workspace,
+                "conflict.epub",
+                "A Different Work",
+                "A. Writer",
+                sourceUrl,
+                description: "Conflicting summary.");
 
             await viewModel.SelectFolderAndImportAsync();
             var review = viewModel.Reviews.Single();
@@ -789,6 +808,7 @@ public sealed class CapabilityProofTests
             await Assert.That(review.FileName).IsEqualTo("conflict.epub");
             await Assert.That(review.Location).IsEqualTo(Path.Combine(workspace, "conflict.epub"));
             await Assert.That(review.Title).IsEqualTo("A Different Work");
+            await Assert.That(review.Description).IsEqualTo("Conflicting summary.");
             await Assert.That(review.Candidates).Count().IsEqualTo(1);
 
             await viewModel.ResolveImportReviewToExistingAsync(review.Id, review.Candidates[0].WorkId);

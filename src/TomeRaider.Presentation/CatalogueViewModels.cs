@@ -112,6 +112,18 @@ public sealed class ImportReviewViewModel(ImportReview review)
 
     public string? Ao3WorkId => review.Metadata.Ao3WorkId;
 
+    public string? Description => review.Metadata.Description;
+
+    public string WordCount => review.Metadata.WordCount?.ToString("N0") ?? "Unknown";
+
+    public string Chapters => review.Metadata.DownloadedChapterCount is null
+        ? "Unknown"
+        : $"{review.Metadata.DownloadedChapterCount} / {review.Metadata.TotalChapterCount?.ToString() ?? "?"}";
+
+    public string Tags => string.Join(", ", review.Metadata.Tags);
+
+    public string? AuthorNotes => review.Metadata.AuthorNotes;
+
     public string Reason => review.Reason;
 
     public IReadOnlyList<ImportReviewCandidateViewModel> Candidates => review.Candidates
