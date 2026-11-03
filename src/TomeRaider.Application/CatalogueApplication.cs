@@ -194,7 +194,11 @@ public sealed class CatalogueApplication
                 {
                     await using var epub = await fileSource.OpenReadAsync(file, cancellationToken);
                     var metadata = await metadataExtractor.ExtractAsync(epub, cancellationToken);
-                    var import = await catalogue.ImportAsync(metadata, file, cancellationToken);
+                    var candidates = await catalogue.FindAssociationCandidatesAsync(
+                        metadata,
+                        cancellationToken);
+                    var decision = WorkAssociationPolicy.Decide(metadata, candidates);
+                    var import = await catalogue.ImportAsync(metadata, file, decision, cancellationToken);
                     results.Add(new ImportItemResult(file, import.Work, metadata, null, import.Review));
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)

@@ -27,9 +27,30 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         Initialize();
     }
 
+    public async Task<IReadOnlyList<ImportReviewCandidate>> FindAssociationCandidatesAsync(
+        EpubMetadata metadata,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(metadata.Ao3WorkId))
+        {
+            return [];
+        }
+
+        await using var connection = OpenConnection();
+        var sourceCandidates = await FindCandidateWorksAsync(
+            connection,
+            null,
+            metadata.Ao3WorkId,
+            cancellationToken);
+        return sourceCandidates.Count > 0
+            ? sourceCandidates
+            : await FindTitleAuthorCandidateWorksAsync(connection, metadata, cancellationToken);
+    }
+
     public async Task<CatalogueImportResult> ImportAsync(
         EpubMetadata metadata,
         SourceFile sourceFile,
+        ImportAssociationDecision decision,
         CancellationToken cancellationToken = default)
     {
         await using var connection = OpenConnection();
@@ -81,29 +102,23 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 null);
         }
 
-        var candidates = metadata.Ao3WorkId is null
-            ? []
-            : await FindCandidateWorksAsync(connection, transaction, metadata.Ao3WorkId, cancellationToken);
-        var associatedWork = candidates.Count == 1 && HasCompatibleIdentity(metadata, candidates[0])
-            ? candidates[0]
-            : null;
-        if (candidates.Count > 0 && associatedWork is null)
+        if (decision.NeedsReview)
         {
             var review = await SaveImportReviewAsync(
                 connection,
                 transaction,
                 sourceFile,
                 metadata,
-                candidates,
+                decision,
                 cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new CatalogueImportResult(null, review);
         }
 
-        var workId = associatedWork?.WorkId ?? Guid.NewGuid();
-        var status = associatedWork?.ReadingStatus ?? ReadingStatus.Unknown;
-        var personalNote = associatedWork?.PersonalNote;
-        if (associatedWork is null)
+        var workId = decision.AssociatedWorkId ?? Guid.NewGuid();
+        var status = ReadingStatus.Unknown;
+        string? personalNote = null;
+        if (decision.AssociatedWorkId is null)
         {
             await using var insertWork = connection.CreateCommand();
             insertWork.Transaction = transaction;
@@ -112,6 +127,14 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             insertWork.Parameters.AddWithValue("$status", (int)ReadingStatus.Unknown);
             insertWork.Parameters.AddWithValue("$personalNote", DBNull.Value);
             await insertWork.ExecuteNonQueryAsync(cancellationToken);
+        }
+        else
+        {
+            (status, personalNote) = await ReadWorkRecordAsync(
+                connection,
+                transaction,
+                decision.AssociatedWorkId.Value,
+                cancellationToken);
         }
 
         var versionId = Guid.NewGuid();
@@ -124,6 +147,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             sourceFile,
             cancellationToken);
         await ReplaceTagsAsync(connection, transaction, versionId, metadata, cancellationToken);
+        await DeleteImportReviewForFileAsync(connection, transaction, sourceFile.Reference, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new CatalogueImportResult(
             ToImportedWork(
@@ -132,7 +156,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 sourceFile,
                 status,
                 personalNote,
-                WasCreated: associatedWork is null),
+                WasCreated: decision.AssociatedWorkId is null),
             null);
     }
 
@@ -566,7 +590,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
 
     private static async Task<IReadOnlyList<ImportReviewCandidate>> FindCandidateWorksAsync(
         SqliteConnection connection,
-        SqliteTransaction transaction,
+        SqliteTransaction? transaction,
         string ao3WorkId,
         CancellationToken cancellationToken)
     {
@@ -584,7 +608,8 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 FROM DownloadedVersions
                 WHERE Ao3WorkId = $ao3WorkId
             )
-            SELECT candidates.WorkId, current.Title, current.Author, works.Status, works.PersonalNote,
+            SELECT candidates.WorkId, current.Title, current.Author, current.Ao3WorkId,
+                   works.Status, works.PersonalNote,
                    COUNT(copies.Id)
             FROM CandidateIds candidates
             INNER JOIN Works works ON works.Id = candidates.WorkId
@@ -592,7 +617,8 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 ON current.WorkId = candidates.WorkId AND current.RowNumber = 1
             LEFT JOIN DownloadedVersions versions ON versions.WorkId = candidates.WorkId
             LEFT JOIN EpubCopies copies ON copies.VersionId = versions.Id
-            GROUP BY candidates.WorkId, current.Title, current.Author, works.Status, works.PersonalNote
+            GROUP BY candidates.WorkId, current.Title, current.Author, current.Ao3WorkId,
+                     works.Status, works.PersonalNote
             ORDER BY current.Title COLLATE NOCASE;
             """;
         command.Parameters.AddWithValue("$ao3WorkId", ao3WorkId);
@@ -605,40 +631,70 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 Guid.Parse(reader.GetString(0)),
                 reader.GetString(1),
                 ReadNullableString(reader, 2),
-                (ReadingStatus)reader.GetInt32(3),
-                ReadNullableString(reader, 4),
-                reader.GetInt32(5)));
+                (ReadingStatus)reader.GetInt32(4),
+                ReadNullableString(reader, 5),
+                reader.GetInt32(6))
+            {
+                Ao3WorkId = ReadNullableString(reader, 3)
+            });
         }
 
         return candidates;
     }
 
-    private static bool HasCompatibleIdentity(
+    private static async Task<IReadOnlyList<ImportReviewCandidate>> FindTitleAuthorCandidateWorksAsync(
+        SqliteConnection connection,
         EpubMetadata metadata,
-        ImportReviewCandidate candidate)
+        CancellationToken cancellationToken)
     {
-        if (!string.Equals(
-                NormalizeIdentityText(metadata.Title),
-                NormalizeIdentityText(candidate.Title),
-                StringComparison.Ordinal))
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            WITH CurrentMetadata AS
+            (
+                SELECT versions.*,
+                       ROW_NUMBER() OVER (PARTITION BY WorkId ORDER BY ImportedAt DESC, Id DESC) AS RowNumber
+                FROM DownloadedVersions versions
+            ), CandidateIds AS
+            (
+                SELECT WorkId
+                FROM CurrentMetadata
+                WHERE RowNumber = 1
+                  AND Title = $title COLLATE NOCASE
+                  AND ($author IS NULL OR Author = $author COLLATE NOCASE)
+            )
+            SELECT candidates.WorkId, current.Title, current.Author, current.Ao3WorkId,
+                   works.Status, works.PersonalNote,
+                   COUNT(copies.Id)
+            FROM CandidateIds candidates
+            INNER JOIN Works works ON works.Id = candidates.WorkId
+            INNER JOIN CurrentMetadata current
+                ON current.WorkId = candidates.WorkId AND current.RowNumber = 1
+            LEFT JOIN DownloadedVersions versions ON versions.WorkId = candidates.WorkId
+            LEFT JOIN EpubCopies copies ON copies.VersionId = versions.Id
+            GROUP BY candidates.WorkId, current.Title, current.Author, current.Ao3WorkId,
+                     works.Status, works.PersonalNote
+            ORDER BY current.Title COLLATE NOCASE;
+            """;
+        command.Parameters.AddWithValue("$title", metadata.Title);
+        command.Parameters.AddWithValue("$author", (object?)metadata.Author ?? DBNull.Value);
+
+        var candidates = new List<ImportReviewCandidate>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
         {
-            return false;
+            candidates.Add(new ImportReviewCandidate(
+                Guid.Parse(reader.GetString(0)),
+                reader.GetString(1),
+                ReadNullableString(reader, 2),
+                (ReadingStatus)reader.GetInt32(4),
+                ReadNullableString(reader, 5),
+                reader.GetInt32(6))
+            {
+                Ao3WorkId = ReadNullableString(reader, 3)
+            });
         }
 
-        return metadata.Author is null
-            || candidate.Author is null
-            || string.Equals(
-                NormalizeIdentityText(metadata.Author),
-                NormalizeIdentityText(candidate.Author),
-                StringComparison.Ordinal);
-    }
-
-    private static string NormalizeIdentityText(string value)
-    {
-        return string.Join(
-                " ",
-                value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
-            .ToUpperInvariant();
+        return candidates;
     }
 
     private static async Task<ImportReview> SaveImportReviewAsync(
@@ -646,7 +702,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         SqliteTransaction transaction,
         SourceFile sourceFile,
         EpubMetadata metadata,
-        IReadOnlyList<ImportReviewCandidate> candidates,
+        ImportAssociationDecision decision,
         CancellationToken cancellationToken)
     {
         var existingReviewId = await FindImportReviewIdAsync(
@@ -655,9 +711,8 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             sourceFile.Reference,
             cancellationToken);
         var reviewId = existingReviewId ?? Guid.NewGuid();
-        var reason = candidates.Count > 1
-            ? "More than one existing work has this source identifier."
-            : "The source identifier matches an existing work, but title or author metadata conflicts.";
+        var reason = decision.ReviewReason
+            ?? throw new InvalidOperationException("An import review requires a reason.");
         var metadataJson = JsonSerializer.Serialize(metadata);
 
         await using var save = connection.CreateCommand();
@@ -689,7 +744,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         deleteCandidates.Parameters.AddWithValue("$reviewId", reviewId.ToString("D"));
         await deleteCandidates.ExecuteNonQueryAsync(cancellationToken);
 
-        foreach (var candidate in candidates)
+        foreach (var candidate in decision.Candidates)
         {
             await using var insertCandidate = connection.CreateCommand();
             insertCandidate.Transaction = transaction;
@@ -702,7 +757,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             await insertCandidate.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        return new ImportReview(reviewId, sourceFile, metadata, reason, candidates);
+        return new ImportReview(reviewId, sourceFile, metadata, reason, decision.Candidates);
     }
 
     private static async Task<Guid?> FindImportReviewIdAsync(
@@ -830,6 +885,23 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         deleteReview.CommandText = "DELETE FROM ImportReviews WHERE Id = $reviewId;";
         deleteReview.Parameters.AddWithValue("$reviewId", reviewId.ToString("D"));
         await deleteReview.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task DeleteImportReviewForFileAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string fileReference,
+        CancellationToken cancellationToken)
+    {
+        var reviewId = await FindImportReviewIdAsync(
+            connection,
+            transaction,
+            fileReference,
+            cancellationToken);
+        if (reviewId is not null)
+        {
+            await DeleteImportReviewAsync(connection, transaction, reviewId.Value, cancellationToken);
+        }
     }
 
     private static EpubMetadata DeserializeMetadata(string json)

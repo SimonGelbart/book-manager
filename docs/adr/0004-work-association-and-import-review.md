@@ -18,6 +18,11 @@ identifier are not sufficient evidence for automatic association. An ordinary
 EPUB without an AO3 link therefore imports as a new Work and does not enter
 Needs review merely because it lacks AO3 metadata.
 
+When a source-enriched import has no exact source-identifier candidate but its
+available title and author metadata match an existing source-independent Work,
+that Work is shown as an uncertain review candidate. The candidate can help
+the owner associate the import, but it never causes automatic association.
+
 When the source identifier has conflicting title or author evidence, or more
 than one existing Work is a candidate, keep the imported file and metadata in
 a durable Needs review record. Do not create a Work or merge personal data

@@ -60,6 +60,14 @@ public sealed record CatalogueImportResult(
     ImportedWork? Work,
     ImportReview? Review);
 
+public sealed record ImportAssociationDecision(
+    Guid? AssociatedWorkId,
+    string? ReviewReason,
+    IReadOnlyList<ImportReviewCandidate> Candidates)
+{
+    public bool NeedsReview => ReviewReason is not null;
+}
+
 public sealed record ImportReviewCandidate(
     Guid WorkId,
     string Title,
@@ -68,6 +76,8 @@ public sealed record ImportReviewCandidate(
     string? PersonalNote,
     int CopyCount)
 {
+    public string? Ao3WorkId { get; init; }
+
     public string ReadingStatusText => ReadingStatus.ToString();
 }
 
@@ -152,9 +162,14 @@ public interface IEpubMetadataExtractor
 
 public interface IWorkCatalogue
 {
+    Task<IReadOnlyList<ImportReviewCandidate>> FindAssociationCandidatesAsync(
+        EpubMetadata metadata,
+        CancellationToken cancellationToken = default);
+
     Task<CatalogueImportResult> ImportAsync(
         EpubMetadata metadata,
         SourceFile sourceFile,
+        ImportAssociationDecision decision,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ImportReview>> GetImportReviewsAsync(

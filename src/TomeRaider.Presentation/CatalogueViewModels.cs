@@ -145,7 +145,7 @@ public sealed class ImportReviewCandidateViewModel(
 
     public string ReadingStatus => candidate.ReadingStatusText;
 
-    public string PersonalInformation => string.IsNullOrWhiteSpace(candidate.PersonalNote)
+    public string PersonalNoteDisplay => string.IsNullOrWhiteSpace(candidate.PersonalNote)
         ? "No personal note"
         : $"Note: {candidate.PersonalNote}";
 

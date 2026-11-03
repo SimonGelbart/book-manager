@@ -56,7 +56,7 @@
                           <TextBlock FontWeight="Bold" Text="{Binding Title}" />
                           <TextBlock Text="{Binding Author, StringFormat='Author: {0}'}" />
                           <TextBlock Text="{Binding ReadingStatus, StringFormat='Reading status: {0}'}" />
-                          <TextBlock Text="{Binding PersonalInformation}" TextWrapping="Wrap" />
+                          <TextBlock Text="{Binding PersonalNoteDisplay}" TextWrapping="Wrap" />
                           <TextBlock Text="{Binding CopyCount, StringFormat='Copies: {0}'}" />
                           <Button Content="Associate with this work"
                                   Tag="{Binding}"

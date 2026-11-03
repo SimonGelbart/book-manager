@@ -644,6 +644,41 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task SourceEnrichedImportCanReviewAgainstAnExistingOrdinaryWork()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "ordinary.epub", "A Shared Title", "A. Reader");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var ordinary = firstImport.Items.Single(item => item.File.DisplayName == "ordinary.epub").Work!;
+
+            SyntheticEpub.Create(
+                workspace,
+                "source-enriched.epub",
+                "A Shared Title",
+                "A. Reader",
+                "https://archiveofourown.org/works/24680");
+            var result = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var review = result.Items.Single(item => item.File.DisplayName == "source-enriched.epub").Review!;
+            var works = await application.GetWorksAsync();
+
+            await Assert.That(review.Reason).IsEqualTo(
+                "Available metadata suggests an existing work, but source identity is not established.");
+            await Assert.That(review.Candidates).Count().IsEqualTo(1);
+            await Assert.That(review.Candidates[0].WorkId).IsEqualTo(ordinary.Id);
+            await Assert.That(works).Count().IsEqualTo(1);
+            await Assert.That(works[0].CopyCount).IsEqualTo(1);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ResolvesImportReviewToExistingWorkWithoutOverwritingPersonalInformation()
     {
         var workspace = CreateWorkspace();
