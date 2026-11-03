@@ -220,6 +220,83 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task SaveAsReadWaitsForAnActiveImportBeforeWritingTheRecord()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
+            var secondPath = SyntheticEpub.Create(workspace, "second.epub", "Second Work", "B. Reader");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    new SourceFolder(workspace, "First folder"),
+                    [new SourceFile(firstPath, "first.epub")]));
+            var firstWorkId = firstImport.Items.Single().Work!.Id;
+            var blockingSource = new BlockingFileSource(
+                new SourceFolder(workspace, "Second folder"),
+                new SourceFile(secondPath, "second.epub"));
+
+            var importTask = application.ImportSelectedFolderAsync(blockingSource);
+            await blockingSource.EnumerationStarted;
+            var saveTask = application.SaveAsReadAsync(firstWorkId, "Queued through the Application gate.");
+            await Task.Yield();
+
+            var saveCompletedBeforeImportReleased = saveTask.IsCompleted;
+            blockingSource.ReleaseEnumeration();
+            await importTask;
+            await saveTask;
+
+            var record = await application.GetReadingRecordAsync(firstWorkId);
+            await Assert.That(saveCompletedBeforeImportReleased).IsFalse();
+            await Assert.That(record!.Status).IsEqualTo(ReadingStatus.Read);
+            await Assert.That(record.PersonalNote).IsEqualTo("Queued through the Application gate.");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task CancellationReleasesTheApplicationMutationGate()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var epubPath = SyntheticEpub.Create(workspace, "cancelled.epub", "A Cancelled Import", "A. Reader");
+            var source = new BlockingFileSource(
+                new SourceFolder(workspace, "Blocking folder"),
+                new SourceFile(epubPath, "cancelled.epub"));
+            var application = CreateApplication(Path.Combine(workspace, "catalogue.sqlite"));
+            using var cancellation = new CancellationTokenSource();
+
+            var importTask = application.ImportSelectedFolderAsync(source, cancellation.Token);
+            await source.EnumerationStarted;
+            cancellation.Cancel();
+
+            var wasCancelled = false;
+            try
+            {
+                await importTask;
+            }
+            catch (OperationCanceledException)
+            {
+                wasCancelled = true;
+            }
+
+            await application.ClearCatalogueAsync();
+            await Assert.That(wasCancelled).IsTrue();
+            await Assert.That(await application.GetWorksAsync()).Count().IsEqualTo(0);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ExtractsAo3WorkFromOriginallyPostedPrefaceMessage()
     {
         await AssertAo3PrefaceMessageAsync("Originally posted on the");
@@ -609,6 +686,8 @@ public sealed class CapabilityProofTests
             await Assert.That(reviewItem.NeedsReview).IsTrue();
             await Assert.That(reviewItem.Review!.File.Reference).IsEqualTo(Path.Combine(workspace, "conflict.epub"));
             await Assert.That(reviewItem.Review.Metadata.Title).IsEqualTo("A Different Work");
+            await Assert.That(reviewItem.Review.Reason).IsEqualTo(
+                "The source identifier matches an existing work, but title or author metadata conflicts.");
             await Assert.That(reviews[0].Metadata.Description).IsEqualTo("Conflicting summary.");
             await Assert.That(reviews).Count().IsEqualTo(1);
             await Assert.That(reviews[0].Candidates).Count().IsEqualTo(1);

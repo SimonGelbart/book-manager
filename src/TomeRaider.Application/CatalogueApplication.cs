@@ -64,7 +64,7 @@ public sealed class CatalogueApplication
         string? personalNote,
         CancellationToken cancellationToken = default)
     {
-        return catalogue.SaveReadingRecordAsync(
+        return SaveReadingRecordWithGateAsync(
             workId,
             TomeRaider.Domain.ReadingStatus.Read,
             personalNote,
