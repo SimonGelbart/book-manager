@@ -88,40 +88,6 @@ public sealed record ImportReview(
     string Reason,
     IReadOnlyList<ImportReviewCandidate> Candidates);
 
-public sealed record CatalogueWorkSummary(
-    Guid Id,
-    string Title,
-    string? Author,
-    string? SourceUrl,
-    string? Ao3WorkId,
-    ReadingStatus ReadingStatus,
-    string? PersonalNote,
-    int? WordCount,
-    bool? IsComplete,
-    int? DownloadedChapterCount,
-    int? TotalChapterCount,
-    int CopyCount)
-{
-    public string ReadingStatusText => ReadingStatus.ToString();
-}
-
-public sealed record CatalogueCopy(
-    Guid Id,
-    string Reference,
-    string DisplayName);
-
-public sealed record CatalogueWorkDetails(
-    CatalogueWorkSummary Summary,
-    string? Description,
-    IReadOnlyList<string> Tags,
-    IReadOnlyList<CategorizedTag> CategorizedTags,
-    string? AuthorNotes,
-    int? DownloadedChapterCount,
-    int? TotalChapterCount,
-    IReadOnlyList<CatalogueCopy> Copies);
-
-public sealed record ReadingRecord(ReadingStatus Status, string? PersonalNote);
-
 public sealed record ImportItemResult(
     SourceFile File,
     ImportedWork? Work,
@@ -153,68 +119,4 @@ public sealed record ImportResult(
     public int ReviewCount => Items.Count(item => item.NeedsReview);
 
     public bool Succeeded => SuccessCount > 0;
-}
-
-public interface IEpubMetadataExtractor
-{
-    Task<EpubMetadata> ExtractAsync(Stream epub, CancellationToken cancellationToken = default);
-}
-
-public interface IWorkCatalogue
-{
-    Task<IReadOnlyList<ImportReviewCandidate>> FindAssociationCandidatesAsync(
-        EpubMetadata metadata,
-        CancellationToken cancellationToken = default);
-
-    Task<CatalogueImportResult> ImportAsync(
-        EpubMetadata metadata,
-        SourceFile sourceFile,
-        ImportAssociationDecision decision,
-        CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<ImportReview>> GetImportReviewsAsync(
-        CancellationToken cancellationToken = default);
-
-    Task<ImportedWork> ResolveImportReviewAsNewWorkAsync(
-        Guid reviewId,
-        CancellationToken cancellationToken = default);
-
-    Task<ImportedWork> ResolveImportReviewToExistingWorkAsync(
-        Guid reviewId,
-        Guid workId,
-        CancellationToken cancellationToken = default);
-
-    Task SaveReadingRecordAsync(
-        Guid workId,
-        ReadingStatus status,
-        string? personalNote,
-        CancellationToken cancellationToken = default);
-
-    Task<ReadingRecord?> GetReadingRecordAsync(
-        Guid workId,
-        CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<CatalogueWorkSummary>> GetWorksAsync(
-        CancellationToken cancellationToken = default);
-
-    Task<CatalogueWorkDetails?> GetWorkDetailsAsync(
-        Guid workId,
-        CancellationToken cancellationToken = default);
-
-    Task ClearAsync(CancellationToken cancellationToken = default);
-}
-
-public interface IFileSource
-{
-    Task<SourceFolder?> SelectFolderAsync(CancellationToken cancellationToken = default);
-
-    Task<SourceFolder?> RestoreFolderAsync(CancellationToken cancellationToken = default);
-
-    IAsyncEnumerable<SourceFile> EnumerateEpubsAsync(
-        SourceFolder folder,
-        CancellationToken cancellationToken = default);
-
-    Task<Stream> OpenReadAsync(
-        SourceFile file,
-        CancellationToken cancellationToken = default);
 }
