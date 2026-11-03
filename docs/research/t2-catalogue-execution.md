@@ -10,7 +10,7 @@ Date: 2026-11-03. Scope: issue [#3 — Durable folder catalogue and metadata](ht
 - Avalonia presentation displays the collection and selected work details through the Application boundary, with readable HTML descriptions, collapsed categorized-tag groups, explicit scope/status labels, and a confirmation-protected action to clear the durable collection.
 - Clearing the collection removes saved works, versions, copies, tags, and personal reading records in one SQLite transaction while preserving the remembered folder.
 - Application mutations are serialized so an active import completes before a confirmed clear; the presentation restores the saved collection and selected work details when it starts.
-- Legacy schema migration runs in one transaction and recovers an interrupted pre-transaction migration state; AO3 summary and notes parsing supports the documented `meta`/`blockquote.userstuff` template structure as well as split-preface fixtures.
+- Legacy schema migration runs in one transaction and recovers an interrupted pre-transaction migration state without discarding already-populated replacement records; AO3 summary and notes parsing supports the documented `meta`/`blockquote.userstuff` template structure as well as split-preface fixtures.
 - T2 keeps separate files with the same AO3 evidence on separate internal Works until the T3 association/review policy is implemented.
 
 ## Executed validation
@@ -19,7 +19,7 @@ Date: 2026-11-03. Scope: issue [#3 — Durable folder catalogue and metadata](ht
 |---|---|---|
 | Locked restore | `dotnet restore TomeRaider.slnx --locked-mode` | Passed: 10 projects, 0 errors, 0 warnings. |
 | Desktop Release build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --configuration Release --no-restore` | Passed: 6 projects, 0 errors, 0 warnings. |
-| Application behavior/integration tests | `dotnet run --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release` | Passed: 26/26, 0 failed, 0 skipped. Includes real temporary SQLite reopen, interrupted legacy migration recovery, generic/AO3 import, official and split-preface metadata, separate internal works for same-AO3 evidence, unchanged rescan, incomplete scan, startup collection restore, import/clear serialization, readable HTML details, grouped tags, clear-collection persistence, and view-model reset behavior. |
+| Application behavior/integration tests | `dotnet run --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release` | Passed: 27/27, 0 failed, 0 skipped. Includes real temporary SQLite reopen, interrupted legacy migration recovery with populated replacement records, generic/AO3 import, official and split-preface metadata, separate internal works for same-AO3 evidence, unchanged rescan, incomplete scan, startup collection restore, import/clear serialization, queued-save target preservation, readable HTML details, grouped tags, clear-collection persistence, and view-model reset behavior. |
 | Architecture tests | `dotnet run --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --configuration Release` | Passed: 8/8, 0 failed, 0 skipped. Includes forbidden dependency and empty-selection failures. |
 | Android Release publish/install | `dotnet publish src/TomeRaider.Android/TomeRaider.Android.csproj --configuration Release --no-restore -p:AndroidSdkDirectory=/home/simon/.local/share/tome-raider/android-sdk -p:JavaSdkDirectory=/home/simon/.local/share/tome-raider/jdk -p:RunAOTCompilation=false` | Publish passed; `emulator-5554` was unavailable, so the signed APK was installed on connected device `MWUBB18124200275` with `Success`, its package path was present, and it launched successfully. The device shell has no `sha256sum`, so an installed/local hash comparison was not performed. |
 | Diff whitespace | `git diff --check main...HEAD` | Passed with no findings. |
@@ -28,4 +28,4 @@ All EPUB fixtures used by these tests are synthetic and created in temporary dir
 
 ## Evidence limits
 
-This record proves the managed Application/SQLite path, Release desktop build, and Android emulator install/launch. It does not claim interactive native folder-picker evidence, Android document-grant/restart evidence, or Windows runtime evidence; those remain separate target-platform checks as described in the testing conventions.
+This record proves the managed Application/SQLite path, Release desktop build, and Android device install/launch. It does not claim interactive native folder-picker evidence, Android document-grant/restart evidence, or Windows runtime evidence; those remain separate target-platform checks as described in the testing conventions.
