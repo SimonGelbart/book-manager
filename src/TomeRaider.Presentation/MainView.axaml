@@ -43,13 +43,19 @@
           <TextBlock Text="{Binding WorkDetails.SourceUrl, StringFormat='Source: {0}'}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkDetails.Description}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkDetails.AuthorNotes, StringFormat='Author notes: {0}'}" TextWrapping="Wrap" />
-          <ItemsControl ItemsSource="{Binding WorkDetails.CategorizedTags}">
+          <TextBlock Text="Tags" FontWeight="Bold" />
+          <ItemsControl ItemsSource="{Binding WorkDetails.TagGroups}">
             <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="app:CategorizedTag">
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                  <TextBlock FontWeight="Bold" Text="{Binding Category}" />
-                  <TextBlock Text="{Binding Value}" />
-                </StackPanel>
+              <DataTemplate x:DataType="vm:TagGroupViewModel">
+                <Expander Header="{Binding Header}" IsExpanded="False">
+                  <ItemsControl ItemsSource="{Binding Values}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Margin="8,0,0,0" Text="{Binding}" TextWrapping="Wrap" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Expander>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>

@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.RegularExpressions;
 using TomeRaider.Application;
 
 namespace TomeRaider.Presentation;
@@ -19,6 +21,21 @@ public sealed class WorkSummaryViewModel(CatalogueWorkSummary summary)
 
 public sealed class WorkDetailsViewModel(CatalogueWorkDetails details)
 {
+    private static readonly Regex BlockElementPattern = new(
+        @"</?(?:p|div|br|li|h[1-6]|blockquote)\b[^>]*>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex HtmlTagPattern = new(
+        @"<[^>]+>",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex HorizontalWhitespacePattern = new(
+        @"[ \t]+",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private readonly IReadOnlyList<TagGroupViewModel> tagGroups = details.CategorizedTags
+        .GroupBy(tag => tag.Category, StringComparer.OrdinalIgnoreCase)
+        .Select(group => new TagGroupViewModel(group.Key, group.Select(tag => tag.Value).ToArray()))
+        .ToArray();
+
     public string Title => details.Summary.Title;
 
     public string? Author => details.Summary.Author;
@@ -40,11 +57,46 @@ public sealed class WorkDetailsViewModel(CatalogueWorkDetails details)
         ? "Unknown"
         : $"{details.Summary.DownloadedChapterCount} / {details.Summary.TotalChapterCount?.ToString() ?? "?"}";
 
-    public string? Description => details.Description;
+    public string? Description => ToPlainText(details.Description);
 
-    public string? AuthorNotes => details.AuthorNotes;
+    public string? AuthorNotes => ToPlainText(details.AuthorNotes);
 
-    public IReadOnlyList<CategorizedTag> CategorizedTags => details.CategorizedTags;
+    public IReadOnlyList<TagGroupViewModel> TagGroups => tagGroups;
 
     public IReadOnlyList<CatalogueCopy> Copies => details.Copies;
+
+    private static string? ToPlainText(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return html;
+        }
+
+        var decoded = WebUtility.HtmlDecode(html);
+        decoded = BlockElementPattern.Replace(decoded, "\n");
+        decoded = HtmlTagPattern.Replace(decoded, string.Empty);
+        decoded = WebUtility.HtmlDecode(decoded);
+
+        var lines = decoded
+            .Split('\n')
+            .Select(line => HorizontalWhitespacePattern.Replace(line.Trim(), " "))
+            .ToArray();
+        var compactLines = new List<string>();
+        foreach (var line in lines)
+        {
+            if (line.Length == 0)
+            {
+                continue;
+            }
+
+            compactLines.Add(line);
+        }
+
+        return string.Join('\n', compactLines).Trim();
+    }
+}
+
+public sealed record TagGroupViewModel(string Category, IReadOnlyList<string> Values)
+{
+    public string Header => $"{Category} ({Values.Count})";
 }

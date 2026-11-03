@@ -446,6 +446,53 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task ViewModelFormatsHtmlDescriptionsAndGroupsCategorizedTags()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(
+                workspace,
+                "html-description.epub",
+                "An HTML Description",
+                "A. Reader",
+                description: "&lt;p&gt;First paragraph.&lt;/p&gt;&lt;p&gt;Second paragraph.&lt;/p&gt;");
+            SyntheticEpub.CreateSplitPreface(
+                workspace,
+                "formatted.epub",
+                "A Formatted Work",
+                "A. Writer",
+                "https://archiveofourown.org/works/13579",
+                description: "<p>First paragraph.</p><p>Second paragraph.</p>",
+                authorNotes: "<p>Keep these notes readable.</p>");
+            var viewModel = new MainViewModel(
+                new CatalogueSession(
+                    CreateApplication(Path.Combine(workspace, "catalogue.sqlite")),
+                    new PhysicalFileSource(workspace)));
+
+            await viewModel.SelectFolderAndImportAsync();
+            var htmlWork = viewModel.Works.Single(work => work.Title == "An HTML Description");
+            await viewModel.SelectWorkAsync(htmlWork.Id);
+
+            await Assert.That(viewModel.WorkDetails!.Description)
+                .IsEqualTo("First paragraph.\nSecond paragraph.");
+
+            var taggedWork = viewModel.Works.Single(work => work.Title == "A Formatted Work");
+            await viewModel.SelectWorkAsync(taggedWork.Id);
+            await Assert.That(viewModel.WorkDetails.AuthorNotes)
+                .IsEqualTo("Keep these notes readable.");
+            var additionalTags = viewModel.WorkDetails.TagGroups
+                .Single(group => group.Category == "Additional Tags");
+            await Assert.That(additionalTags.Header).IsEqualTo("Additional Tags (1)");
+            await Assert.That(additionalTags.Values).Contains("Found Family");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ImageFirstSpineItemWithXhtmlFallbackStillImportsBaseMetadata()
     {
         var workspace = CreateWorkspace();
