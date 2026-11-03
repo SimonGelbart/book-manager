@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:app="using:TomeRaider.Application"
+             xmlns:vm="using:TomeRaider.Presentation"
+             x:Class="TomeRaider.Presentation.MainView"
+             x:DataType="vm:MainViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="28" Spacing="12" MaxWidth="900">
+      <TextBlock FontSize="28" FontWeight="Bold" Text="Tome Raider" />
+      <TextBlock Text="Raid. Hoard. Read." />
+      <TextBlock Text="Runtime capability proof: import EPUB metadata and save a reading record." />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Content="Select folder and import" Click="SelectFolder" />
+        <Button Content="Import saved folder" Click="ImportSavedFolder" />
+      </StackPanel>
+      <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+      <TextBlock FontWeight="Bold" Text="Imported works" />
+      <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="app:ImportItemResult">
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,0,0,6">
+              <StackPanel Spacing="4">
+                <TextBlock FontWeight="Bold" Text="{Binding DisplayText}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Work.Author}" />
+                <TextBlock Text="{Binding Metadata.Ao3WorkId, StringFormat='AO3 work: {0}'}" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock FontWeight="Bold" Text="Personal reading record" />
+      <TextBox PlaceholderText="Personal note" Text="{Binding PersonalNote}" AcceptsReturn="True" MinHeight="80" />
+      <Button Content="Save as Read" Click="SaveReading" HorizontalAlignment="Left" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

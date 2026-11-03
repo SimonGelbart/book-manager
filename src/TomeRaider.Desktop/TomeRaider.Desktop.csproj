@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RootNamespace>TomeRaider.Desktop</RootNamespace>
+    <AssemblyName>TomeRaider.Desktop</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TomeRaider.Application/TomeRaider.Application.csproj" />
+    <ProjectReference Include="../TomeRaider.Infrastructure/TomeRaider.Infrastructure.csproj" />
+    <ProjectReference Include="../TomeRaider.Platform.Storage/TomeRaider.Platform.Storage.csproj" />
+    <ProjectReference Include="../TomeRaider.Presentation/TomeRaider.Presentation.csproj" />
+    <PackageReference Include="Avalonia.Desktop" />
+  </ItemGroup>
+</Project>
