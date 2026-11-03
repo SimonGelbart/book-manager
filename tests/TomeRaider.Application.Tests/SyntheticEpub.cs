@@ -172,7 +172,7 @@ internal static class SyntheticEpub
                 <dc:identifier>urn:uuid:{Guid.NewGuid():D}</dc:identifier>
                 <dc:title>{title}</dc:title>
                 <dc:creator>{author}</dc:creator>
-                <dc:description>{description}</dc:description>
+                <dc:description></dc:description>
                 <dc:subject>General</dc:subject>
               </metadata>
               <manifest>
@@ -207,7 +207,16 @@ internal static class SyntheticEpub
             "OEBPS/preface-two.xhtml",
             $"""
             <html xmlns="http://www.w3.org/1999/xhtml"><body>
-              <div id="preface"><div id="notes">{authorNotes}</div></div>
+              <div id="preface">
+                <div class="meta group">
+                  <h3 class="heading">Summary:</h3>
+                  <div class="userstuff">{description}</div>
+                </div>
+                <div class="meta group">
+                  <h3 class="heading">Author's Notes:</h3>
+                  <div class="userstuff">{authorNotes}</div>
+                </div>
+              </div>
             </body></html>
             """);
         AddEntry(

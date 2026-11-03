@@ -343,7 +343,9 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
     private static string? FindPrefaceDescription(XDocument preface)
     {
         var summary = FindElementById(preface, "summary");
-        return summary is null ? null : GetElementText(summary);
+        return summary is null
+            ? FindLabeledSection(preface, "summary")
+            : GetElementText(summary);
     }
 
     private static string? FindAuthorNotes(XDocument preface)
@@ -354,7 +356,32 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
                 string.Equals((string?)element.Attribute("id"), "notes", StringComparison.OrdinalIgnoreCase)
                 || string.Equals((string?)element.Attribute("id"), "author-notes", StringComparison.OrdinalIgnoreCase)
                 || HasClass(element, "notes"));
-        return notes is null ? null : GetElementText(notes);
+        return notes is null
+            ? FindLabeledSection(preface, "author")
+            : GetElementText(notes);
+    }
+
+    private static string? FindLabeledSection(XDocument document, string label)
+    {
+        foreach (var group in document
+                     .Descendants(XhtmlNamespace + "div")
+                     .Where(element => HasClass(element, "meta") && HasClass(element, "group")))
+        {
+            var heading = group
+                .Descendants()
+                .FirstOrDefault(element => HasClass(element, "heading"));
+            if (heading is null || !heading.Value.Contains(label, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var userstuff = group
+                .Descendants(XhtmlNamespace + "div")
+                .FirstOrDefault(element => HasClass(element, "userstuff"));
+            return GetElementText(userstuff ?? group);
+        }
+
+        return null;
     }
 
     private static XElement? FindElementById(XDocument document, string id)
