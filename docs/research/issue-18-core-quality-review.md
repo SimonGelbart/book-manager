@@ -152,4 +152,3 @@ so the result is useful evidence but is not yet a CI quality threshold.
 
 All automated fixtures used here are synthetic and temporary. No private EPUB,
 identifying metadata, or narrative was added to the report or repository.
-
