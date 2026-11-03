@@ -27,6 +27,9 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
     private static readonly Regex OriginalPostedMessagePattern = new(
         @"\b(?:originally\s+posted|posted\s+originally)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex ChapterCountPattern = new(
+        @"\bchapters?\s*:\s*(\d+)\s*/\s*(\d+|\?)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public Task<EpubMetadata> ExtractAsync(
         Stream epub,
@@ -74,8 +77,10 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
                     .Select(meta => (string?)meta.Attribute("content") ?? meta.Value))
             .Select(FindAo3WorkUrl)
             .FirstOrDefault(url => url is not null);
-        var preface = LoadFirstSpineDocument(archive, package, packagePath, cancellationToken);
-        var prefaceSourceUrl = FindAo3WorkUrlFromPreface(preface);
+        var spineDocuments = LoadSpineDocuments(archive, package, packagePath, cancellationToken).ToArray();
+        var prefaceSourceUrl = spineDocuments
+            .Select(FindAo3WorkUrlFromPreface)
+            .FirstOrDefault(url => url is not null);
         var sourceUrl = prefaceSourceUrl ?? packageSourceUrl;
         var ao3WorkId = FindAo3WorkId(sourceUrl);
         var tags = metadata
@@ -84,9 +89,14 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
             .Where(subject => !string.IsNullOrWhiteSpace(subject))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        var prefaceStatsText = GetPrefaceStatsText(preface);
+        var prefaceStatsText = string.Join(
+            " ",
+            spineDocuments
+                .Select(GetPrefaceStatsText)
+                .Where(text => !string.IsNullOrWhiteSpace(text)));
         var wordCount = FindIntegerMeta(metadata, "word-count", "ao3:word-count", "words")
             ?? FindPrefaceWordCount(prefaceStatsText);
+        var (downloadedChapterCount, totalChapterCount) = FindPrefaceChapterCounts(prefaceStatsText);
         var status = FindMeta(metadata, "status", "ao3:status", "completion-status")
             ?? FindPrefaceStatus(prefaceStatsText);
         bool? isComplete = null;
@@ -102,15 +112,33 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
                     : null;
         }
 
+        var categorizedTags = spineDocuments
+            .SelectMany(GetCategorizedTags)
+            .Concat(tags.Select(tag => new CategorizedTag("Subject", tag, null)))
+            .Distinct()
+            .ToArray();
+        var prefaceDescription = spineDocuments
+            .Select(FindPrefaceDescription)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        var authorNotes = spineDocuments
+            .Select(FindAuthorNotes)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
         return new EpubMetadata(
             title,
             string.IsNullOrWhiteSpace(author) ? null : author,
-            string.IsNullOrWhiteSpace(description) ? null : description,
+            string.IsNullOrWhiteSpace(description) ? prefaceDescription : description,
             sourceUrl,
             ao3WorkId,
             tags,
             wordCount,
-            isComplete);
+            isComplete)
+        {
+            CategorizedTags = categorizedTags,
+            AuthorNotes = authorNotes,
+            DownloadedChapterCount = downloadedChapterCount,
+            TotalChapterCount = totalChapterCount
+        };
     }
 
     private static XDocument LoadXml(ZipArchiveEntry entry, CancellationToken cancellationToken)
@@ -120,30 +148,55 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
         return XDocument.Load(stream, LoadOptions.None);
     }
 
-    private static XDocument? LoadFirstSpineDocument(
+    private static IEnumerable<XDocument> LoadSpineDocuments(
         ZipArchive archive,
         XDocument package,
         string packagePath,
         CancellationToken cancellationToken)
     {
-        var firstId = package
+        var spineIds = package
             .Root?
             .Element(PackageNamespace + "spine")?
             .Elements(PackageNamespace + "itemref")
             .Select(itemref => (string?)itemref.Attribute("idref"))
-            .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
-        if (firstId is null)
-        {
-            return null;
-        }
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Cast<string>()
+            .ToArray() ?? [];
 
         var manifestItems = package
             .Root?
             .Element(PackageNamespace + "manifest")?
             .Elements(PackageNamespace + "item")
             .ToArray();
-        var item = manifestItems?.FirstOrDefault(candidate =>
-            string.Equals((string?)candidate.Attribute("id"), firstId, StringComparison.Ordinal));
+        if (manifestItems is null)
+        {
+            yield break;
+        }
+
+        foreach (var spineId in spineIds)
+        {
+            var document = LoadSpineDocument(
+                archive,
+                manifestItems,
+                spineId,
+                packagePath,
+                cancellationToken);
+            if (document is not null)
+            {
+                yield return document;
+            }
+        }
+    }
+
+    private static XDocument? LoadSpineDocument(
+        ZipArchive archive,
+        IReadOnlyList<XElement> manifestItems,
+        string spineId,
+        string packagePath,
+        CancellationToken cancellationToken)
+    {
+        var item = manifestItems.FirstOrDefault(candidate =>
+            string.Equals((string?)candidate.Attribute("id"), spineId, StringComparison.Ordinal));
         if (item is null)
         {
             return null;
@@ -169,7 +222,7 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
             var fallbackId = (string?)item.Attribute("fallback");
             item = string.IsNullOrWhiteSpace(fallbackId)
                 ? null
-                : manifestItems?.FirstOrDefault(candidate =>
+                : manifestItems.FirstOrDefault(candidate =>
                     string.Equals((string?)candidate.Attribute("id"), fallbackId, StringComparison.Ordinal));
         }
 
@@ -231,6 +284,87 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
             .Select(anchor => (string?)anchor.Attribute("href"))
             .Select(FindAo3WorkUrl)
             .FirstOrDefault(url => url is not null);
+    }
+
+    private static IEnumerable<CategorizedTag> GetCategorizedTags(XDocument preface)
+    {
+        var prefaceElement = FindAo3Preface(preface);
+        if (prefaceElement is null)
+        {
+            yield break;
+        }
+
+        foreach (var definitionList in prefaceElement
+                     .Descendants(XhtmlNamespace + "dl")
+                     .Where(element => HasClass(element, "tags")))
+        {
+            var children = definitionList.Elements().ToArray();
+            for (var index = 0; index < children.Length; index++)
+            {
+                var term = children[index];
+                if (term.Name != XhtmlNamespace + "dt")
+                {
+                    continue;
+                }
+
+                var category = GetElementText(term).Trim().TrimEnd(':');
+                var definition = children
+                    .Skip(index + 1)
+                    .FirstOrDefault(element => element.Name == XhtmlNamespace + "dd");
+                if (definition is null || string.Equals(category, "Stats", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var linkedTags = definition
+                    .Descendants(XhtmlNamespace + "a")
+                    .Select(anchor => new CategorizedTag(
+                        category,
+                        GetElementText(anchor),
+                        (string?)anchor.Attribute("href")))
+                    .Where(tag => !string.IsNullOrWhiteSpace(tag.Value));
+                foreach (var tag in linkedTags)
+                {
+                    yield return tag;
+                }
+
+                if (!definition.Descendants(XhtmlNamespace + "a").Any())
+                {
+                    var value = GetElementText(definition);
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        yield return new CategorizedTag(category, value, null);
+                    }
+                }
+            }
+        }
+    }
+
+    private static string? FindPrefaceDescription(XDocument preface)
+    {
+        var summary = FindElementById(preface, "summary");
+        return summary is null ? null : GetElementText(summary);
+    }
+
+    private static string? FindAuthorNotes(XDocument preface)
+    {
+        var notes = preface
+            .Descendants(XhtmlNamespace + "div")
+            .FirstOrDefault(element =>
+                string.Equals((string?)element.Attribute("id"), "notes", StringComparison.OrdinalIgnoreCase)
+                || string.Equals((string?)element.Attribute("id"), "author-notes", StringComparison.OrdinalIgnoreCase)
+                || HasClass(element, "notes"));
+        return notes is null ? null : GetElementText(notes);
+    }
+
+    private static XElement? FindElementById(XDocument document, string id)
+    {
+        return document
+            .Descendants()
+            .FirstOrDefault(element => string.Equals(
+                (string?)element.Attribute("id"),
+                id,
+                StringComparison.OrdinalIgnoreCase));
     }
 
     private static XElement? FindAo3Preface(XDocument? document)
@@ -305,6 +439,23 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
             out var wordCount)
             ? wordCount
             : null;
+    }
+
+    private static (int? Downloaded, int? Total) FindPrefaceChapterCounts(string? prefaceText)
+    {
+        var match = prefaceText is null ? null : ChapterCountPattern.Match(prefaceText);
+        if (match?.Success != true)
+        {
+            return (null, null);
+        }
+
+        var downloaded = int.TryParse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var downloadedCount)
+            ? downloadedCount
+            : (int?)null;
+        var total = int.TryParse(match.Groups[2].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var totalCount)
+            ? totalCount
+            : (int?)null;
+        return (downloaded, total);
     }
 
     private static string? FindPrefaceStatus(string? prefaceText)

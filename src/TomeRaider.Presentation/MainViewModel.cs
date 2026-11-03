@@ -15,6 +15,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<ImportItemResult> Items { get; } = [];
 
+    public ObservableCollection<CatalogueWorkSummary> Works { get; } = [];
+
     [ObservableProperty]
     private string statusMessage = "Choose an EPUB folder to begin.";
 
@@ -23,6 +25,12 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private ImportItemResult? selectedItem;
+
+    [ObservableProperty]
+    private CatalogueWorkSummary? selectedWork;
+
+    [ObservableProperty]
+    private CatalogueWorkDetails? workDetails;
 
     partial void OnSelectedItemChanged(ImportItemResult? value)
     {
@@ -41,7 +49,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task SaveReadingAsync()
     {
-        if (SelectedItem?.Work is not { } work)
+        var workId = SelectedWork?.Id ?? SelectedItem?.Work?.Id;
+        if (workId is null)
         {
             StatusMessage = "Import a work before saving a reading record.";
             return;
@@ -49,13 +58,25 @@ public sealed partial class MainViewModel : ObservableObject
 
         try
         {
-            await session.Application.SaveAsReadAsync(work.Id, PersonalNote);
-            StatusMessage = $"Saved Read and note for '{work.Title}'.";
+            var title = SelectedWork?.Title ?? SelectedItem?.Work?.Title ?? "work";
+            await session.Application.SaveAsReadAsync(workId.Value, PersonalNote);
+            await LoadWorksAsync();
+            await SelectWorkAsync(workId.Value);
+            StatusMessage = $"Saved Read and note for '{title}'.";
         }
         catch (Exception exception)
         {
             StatusMessage = $"Could not save the reading record: {exception.Message}";
         }
+    }
+
+    public async Task SelectWorkAsync(Guid workId)
+    {
+        SelectedWork = Works.FirstOrDefault(work => work.Id == workId);
+        WorkDetails = SelectedWork is null
+            ? null
+            : await session.Application.GetWorkDetailsAsync(workId);
+        PersonalNote = WorkDetails?.Summary.PersonalNote ?? string.Empty;
     }
 
     private async Task ImportAsync(Func<Task<ImportResult>> import)
@@ -70,9 +91,20 @@ public sealed partial class MainViewModel : ObservableObject
             }
 
             SelectedItem = Items.FirstOrDefault(item => item.Succeeded);
+            await LoadWorksAsync();
+            if (SelectedItem?.Work is { } importedWork)
+            {
+                await SelectWorkAsync(importedWork.Id);
+            }
             if (result.WasCancelled)
             {
                 StatusMessage = "No folder was selected or no saved folder is available.";
+            }
+            else if (result.ScanError is not null)
+            {
+                StatusMessage = result.FailureCount == 0
+                    ? $"Imported {result.SuccessCount} EPUB file(s), but the scan was incomplete: {result.ScanError}"
+                    : $"Imported {result.SuccessCount} EPUB file(s); {result.FailureCount} failed, and the scan was incomplete: {result.ScanError}";
             }
             else if (result.FailureCount == 0)
             {
@@ -86,6 +118,26 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception exception)
         {
             StatusMessage = $"Could not import the folder: {exception.Message}";
+        }
+    }
+
+    private async Task LoadWorksAsync()
+    {
+        var selectedId = SelectedWork?.Id;
+        var works = await session.Application.GetWorksAsync();
+        Works.Clear();
+        foreach (var work in works)
+        {
+            Works.Add(work);
+        }
+
+        if (selectedId is not null && Works.Any(work => work.Id == selectedId))
+        {
+            SelectedWork = Works.First(work => work.Id == selectedId);
+        }
+        else
+        {
+            SelectedWork = Works.FirstOrDefault();
         }
     }
 }

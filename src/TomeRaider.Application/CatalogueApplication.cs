@@ -61,6 +61,19 @@ public sealed class CatalogueApplication
         return catalogue.GetReadingRecordAsync(workId, cancellationToken);
     }
 
+    public Task<IReadOnlyList<CatalogueWorkSummary>> GetWorksAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return catalogue.GetWorksAsync(cancellationToken);
+    }
+
+    public Task<CatalogueWorkDetails?> GetWorkDetailsAsync(
+        Guid workId,
+        CancellationToken cancellationToken = default)
+    {
+        return catalogue.GetWorkDetailsAsync(workId, cancellationToken);
+    }
+
     private async Task<ImportResult> ImportFolderAsync(
         IFileSource fileSource,
         SourceFolder folder,
@@ -68,21 +81,29 @@ public sealed class CatalogueApplication
     {
         var results = new List<ImportItemResult>();
 
-        await foreach (var file in fileSource.EnumerateEpubsAsync(folder, cancellationToken))
+        string? scanError = null;
+        try
         {
-            try
+            await foreach (var file in fileSource.EnumerateEpubsAsync(folder, cancellationToken))
             {
-                await using var epub = await fileSource.OpenReadAsync(file, cancellationToken);
-                var metadata = await metadataExtractor.ExtractAsync(epub, cancellationToken);
-                var work = await catalogue.ImportAsync(metadata, file, cancellationToken);
-                results.Add(new ImportItemResult(file, work, metadata, null));
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                results.Add(new ImportItemResult(file, null, null, exception.Message));
+                try
+                {
+                    await using var epub = await fileSource.OpenReadAsync(file, cancellationToken);
+                    var metadata = await metadataExtractor.ExtractAsync(epub, cancellationToken);
+                    var work = await catalogue.ImportAsync(metadata, file, cancellationToken);
+                    results.Add(new ImportItemResult(file, work, metadata, null));
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    results.Add(new ImportItemResult(file, null, null, exception.Message));
+                }
             }
         }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            scanError = exception.Message;
+        }
 
-        return new ImportResult(folder, results, WasCancelled: false);
+        return new ImportResult(folder, results, WasCancelled: false, ScanError: scanError);
     }
 }

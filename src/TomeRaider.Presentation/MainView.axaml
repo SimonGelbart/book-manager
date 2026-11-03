@@ -8,13 +8,54 @@
     <StackPanel Margin="28" Spacing="12" MaxWidth="900">
       <TextBlock FontSize="28" FontWeight="Bold" Text="Tome Raider" />
       <TextBlock Text="Raid. Hoard. Read." />
-      <TextBlock Text="Runtime capability proof: import EPUB metadata and save a reading record." />
+      <TextBlock Text="Browse your EPUB collection and keep reading information beside it." />
       <StackPanel Orientation="Horizontal" Spacing="8">
         <Button Content="Select folder and import" Click="SelectFolder" />
         <Button Content="Import saved folder" Click="ImportSavedFolder" />
       </StackPanel>
       <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
-      <TextBlock FontWeight="Bold" Text="Imported works" />
+      <Grid ColumnDefinitions="2*,3*" ColumnSpacing="16">
+        <StackPanel Grid.Column="0" Spacing="8">
+          <TextBlock FontWeight="Bold" Text="Collection" />
+          <ListBox ItemsSource="{Binding Works}"
+                   SelectedItem="{Binding SelectedWork}"
+                   SelectionChanged="SelectWork"
+                   MinHeight="180">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="app:CatalogueWorkSummary">
+                <StackPanel Margin="4" Spacing="2">
+                  <TextBlock FontWeight="Bold" Text="{Binding Title}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Author}" />
+                  <TextBlock Text="{Binding ReadingStatusDisplay}" />
+                  <TextBlock Text="{Binding WordCountDisplay, StringFormat='Words: {0}'}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="6">
+          <TextBlock FontWeight="Bold" Text="Work details" />
+          <TextBlock FontSize="22" FontWeight="Bold" Text="{Binding WorkDetails.Summary.Title}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding WorkDetails.Summary.Author, StringFormat='Author: {0}'}" />
+          <TextBlock Text="{Binding WorkDetails.Summary.CompletionDisplay, StringFormat='AO3 completion: {0}'}" />
+          <TextBlock Text="{Binding WorkDetails.Summary.WordCountDisplay, StringFormat='Words: {0}'}" />
+          <TextBlock Text="{Binding WorkDetails.Summary.SourceUrl, StringFormat='Source: {0}'}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding WorkDetails.Description}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding WorkDetails.AuthorNotes, StringFormat='Author notes: {0}'}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding WorkDetails.CategorizedTags}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="app:CategorizedTag">
+                <TextBlock Text="{Binding DisplayText}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="{Binding WorkDetails.Copies.Count, StringFormat='Copies: {0}'}" />
+          <TextBlock FontWeight="Bold" Text="Personal reading record" />
+          <TextBox PlaceholderText="Personal note" Text="{Binding PersonalNote}" AcceptsReturn="True" MinHeight="80" />
+          <Button Content="Save as Read" Click="SaveReading" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Grid>
+      <TextBlock FontWeight="Bold" Text="Latest scan results" />
       <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="app:ImportItemResult">
@@ -28,9 +69,6 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <TextBlock FontWeight="Bold" Text="Personal reading record" />
-      <TextBox PlaceholderText="Personal note" Text="{Binding PersonalNote}" AcceptsReturn="True" MinHeight="80" />
-      <Button Content="Save as Read" Click="SaveReading" HorizontalAlignment="Left" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>
