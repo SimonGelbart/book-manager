@@ -34,30 +34,12 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         await using var connection = OpenConnection();
         await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
         var existing = await FindExistingAsync(connection, transaction, sourceFile, cancellationToken);
-        var workId = existing?.WorkId ?? Guid.Empty;
-        var wasCreated = existing is null;
+        var workId = existing?.WorkId ?? Guid.NewGuid();
         var status = existing?.Status ?? ReadingStatus.Unknown;
         var personalNote = existing?.PersonalNote;
 
-        if (existing is null && metadata.Ao3WorkId is not null)
+        if (existing is null)
         {
-            var existingWork = await FindWorkByAo3IdAsync(
-                connection,
-                transaction,
-                metadata.Ao3WorkId,
-                cancellationToken);
-            if (existingWork is not null)
-            {
-                workId = existingWork.Value.WorkId;
-                status = existingWork.Value.Status;
-                personalNote = existingWork.Value.PersonalNote;
-                wasCreated = false;
-            }
-        }
-
-        if (workId == Guid.Empty)
-        {
-            workId = Guid.NewGuid();
             await using var insertWork = connection.CreateCommand();
             insertWork.Transaction = transaction;
             insertWork.CommandText = "INSERT INTO Works (Id, Status, PersonalNote) VALUES ($id, $status, $personalNote);";
@@ -67,32 +49,38 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             await insertWork.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        var copyId = existing?.CopyId ?? Guid.NewGuid();
+        var versionId = existing?.VersionId ?? Guid.NewGuid();
         if (existing is null)
         {
+            await using var insertVersion = connection.CreateCommand();
+            insertVersion.Transaction = transaction;
+            insertVersion.CommandText = """
+                INSERT INTO DownloadedVersions
+                    (Id, WorkId, Title, Author, Description, SourceUrl, Ao3WorkId, WordCount, IsComplete,
+                     AuthorNotes, DownloadedChapterCount, TotalChapterCount, ImportedAt)
+                VALUES
+                    ($id, $workId, $title, $author, $description, $sourceUrl, $ao3WorkId, $wordCount, $isComplete,
+                     $authorNotes, $downloadedChapterCount, $totalChapterCount, $importedAt);
+                """;
+            AddVersionParameters(insertVersion, versionId, workId, metadata);
+            await insertVersion.ExecuteNonQueryAsync(cancellationToken);
+
             await using var insertCopy = connection.CreateCommand();
             insertCopy.Transaction = transaction;
             insertCopy.CommandText = """
-                INSERT INTO EpubCopies
-                    (Id, WorkId, FileReference, DisplayName, Title, Author, Description, SourceUrl, Ao3WorkId,
-                     WordCount, IsComplete, AuthorNotes, DownloadedChapterCount, TotalChapterCount, ImportedAt)
-                VALUES
-                    ($id, $workId, $fileReference, $displayName, $title, $author, $description, $sourceUrl, $ao3WorkId,
-                     $wordCount, $isComplete, $authorNotes, $downloadedChapterCount, $totalChapterCount, $importedAt);
+                INSERT INTO EpubCopies (Id, VersionId, FileReference, DisplayName)
+                VALUES ($id, $versionId, $fileReference, $displayName);
                 """;
-            AddCopyParameters(insertCopy, copyId, workId, metadata, sourceFile);
+            AddCopyParameters(insertCopy, Guid.NewGuid(), versionId, sourceFile);
             await insertCopy.ExecuteNonQueryAsync(cancellationToken);
         }
         else
         {
-            await using var updateCopy = connection.CreateCommand();
-            updateCopy.Transaction = transaction;
-            updateCopy.CommandText = """
-                UPDATE EpubCopies
-                SET WorkId = $workId,
-                    FileReference = $fileReference,
-                    DisplayName = $displayName,
-                    Title = $title,
+            await using var updateVersion = connection.CreateCommand();
+            updateVersion.Transaction = transaction;
+            updateVersion.CommandText = """
+                UPDATE DownloadedVersions
+                SET Title = $title,
                     Author = $author,
                     Description = $description,
                     SourceUrl = $sourceUrl,
@@ -105,13 +93,30 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                     ImportedAt = $importedAt
                 WHERE Id = $id;
                 """;
-            AddCopyParameters(updateCopy, copyId, workId, metadata, sourceFile);
+            AddVersionParameters(updateVersion, versionId, workId, metadata);
+            await updateVersion.ExecuteNonQueryAsync(cancellationToken);
+
+            await using var updateCopy = connection.CreateCommand();
+            updateCopy.Transaction = transaction;
+            updateCopy.CommandText = """
+                UPDATE EpubCopies
+                SET FileReference = $fileReference,
+                    DisplayName = $displayName
+                WHERE Id = $id;
+                """;
+            AddCopyParameters(updateCopy, existing.Value.CopyId, versionId, sourceFile);
             await updateCopy.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        await ReplaceTagsAsync(connection, transaction, copyId, metadata, cancellationToken);
+        await ReplaceTagsAsync(connection, transaction, versionId, metadata, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return ToImportedWork(workId, metadata, sourceFile, status, personalNote, wasCreated);
+        return ToImportedWork(
+            workId,
+            metadata,
+            sourceFile,
+            status,
+            personalNote,
+            WasCreated: existing is null);
     }
 
     public async Task SaveReadingRecordAsync(
@@ -161,13 +166,17 @@ public sealed class SqliteCatalogue : IWorkCatalogue
     {
         await using var connection = OpenConnection();
         await using var command = connection.CreateCommand();
-        command.CommandText = LatestCopyQuery + """
-            SELECT w.Id, latest.Title, latest.Author, latest.SourceUrl, latest.Ao3WorkId,
-                   w.Status, w.PersonalNote, latest.WordCount, latest.IsComplete,
-                   (SELECT COUNT(*) FROM EpubCopies copyCount WHERE copyCount.WorkId = w.Id)
+        command.CommandText = CurrentMetadataQuery + """
+            SELECT w.Id, current.Title, current.Author, current.SourceUrl, current.Ao3WorkId,
+                   w.Status, w.PersonalNote, current.WordCount, current.IsComplete,
+                   current.DownloadedChapterCount, current.TotalChapterCount,
+                   (SELECT COUNT(*)
+                    FROM EpubCopies copyCount
+                    INNER JOIN DownloadedVersions versionCount ON versionCount.Id = copyCount.VersionId
+                    WHERE versionCount.WorkId = w.Id)
             FROM Works w
-            INNER JOIN LatestCopies latest ON latest.WorkId = w.Id AND latest.RowNumber = 1
-            ORDER BY latest.Title COLLATE NOCASE;
+            INNER JOIN CurrentMetadata current ON current.WorkId = w.Id AND current.RowNumber = 1
+            ORDER BY current.Title COLLATE NOCASE;
             """;
 
         var works = new List<CatalogueWorkSummary>();
@@ -186,13 +195,17 @@ public sealed class SqliteCatalogue : IWorkCatalogue
     {
         await using var connection = OpenConnection();
         await using var summaryCommand = connection.CreateCommand();
-        summaryCommand.CommandText = LatestCopyQuery + """
-            SELECT w.Id, latest.Title, latest.Author, latest.SourceUrl, latest.Ao3WorkId,
-                   w.Status, w.PersonalNote, latest.WordCount, latest.IsComplete,
-                   (SELECT COUNT(*) FROM EpubCopies copyCount WHERE copyCount.WorkId = w.Id),
-                   latest.Id
+        summaryCommand.CommandText = CurrentMetadataQuery + """
+            SELECT w.Id, current.Title, current.Author, current.SourceUrl, current.Ao3WorkId,
+                   w.Status, w.PersonalNote, current.WordCount, current.IsComplete,
+                   current.DownloadedChapterCount, current.TotalChapterCount,
+                   (SELECT COUNT(*)
+                    FROM EpubCopies copyCount
+                    INNER JOIN DownloadedVersions versionCount ON versionCount.Id = copyCount.VersionId
+                    WHERE versionCount.WorkId = w.Id),
+                   current.Id
             FROM Works w
-            INNER JOIN LatestCopies latest ON latest.WorkId = w.Id AND latest.RowNumber = 1
+            INNER JOIN CurrentMetadata current ON current.WorkId = w.Id AND current.RowNumber = 1
             WHERE w.Id = $id;
             """;
         summaryCommand.Parameters.AddWithValue("$id", workId.ToString("D"));
@@ -204,18 +217,18 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         }
 
         var summary = ReadSummary(summaryReader);
-        var latestCopyId = Guid.Parse(summaryReader.GetString(10));
+        var currentVersionId = Guid.Parse(summaryReader.GetString(12));
         await summaryReader.DisposeAsync();
 
-        var (tags, categorizedTags) = await ReadTagsAsync(connection, latestCopyId, cancellationToken);
+        var (tags, categorizedTags) = await ReadTagsAsync(connection, currentVersionId, cancellationToken);
         var copies = await ReadCopiesAsync(connection, workId, cancellationToken);
         await using var metadataCommand = connection.CreateCommand();
         metadataCommand.CommandText = """
             SELECT Description, AuthorNotes, DownloadedChapterCount, TotalChapterCount
-            FROM EpubCopies
+            FROM DownloadedVersions
             WHERE Id = $id;
             """;
-        metadataCommand.Parameters.AddWithValue("$id", latestCopyId.ToString("D"));
+        metadataCommand.Parameters.AddWithValue("$id", currentVersionId.ToString("D"));
         await using var metadataReader = await metadataCommand.ExecuteReaderAsync(cancellationToken);
         await metadataReader.ReadAsync(cancellationToken);
 
@@ -230,12 +243,12 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             copies);
     }
 
-    private const string LatestCopyQuery = """
-        WITH LatestCopies AS
+    private const string CurrentMetadataQuery = """
+        WITH CurrentMetadata AS
         (
-            SELECT copies.*,
+            SELECT versions.*,
                    ROW_NUMBER() OVER (PARTITION BY WorkId ORDER BY ImportedAt DESC, Id DESC) AS RowNumber
-            FROM EpubCopies copies
+            FROM DownloadedVersions versions
         )
         """;
 
@@ -259,12 +272,10 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 Status INTEGER NOT NULL,
                 PersonalNote TEXT NULL
             );
-            CREATE TABLE IF NOT EXISTS EpubCopies
+            CREATE TABLE IF NOT EXISTS DownloadedVersions
             (
                 Id TEXT NOT NULL PRIMARY KEY,
                 WorkId TEXT NOT NULL,
-                FileReference TEXT NOT NULL UNIQUE,
-                DisplayName TEXT NOT NULL,
                 Title TEXT NOT NULL,
                 Author TEXT NULL,
                 Description TEXT NULL,
@@ -278,17 +289,26 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 ImportedAt INTEGER NOT NULL,
                 FOREIGN KEY (WorkId) REFERENCES Works (Id)
             );
+            CREATE TABLE IF NOT EXISTS EpubCopies
+            (
+                Id TEXT NOT NULL PRIMARY KEY,
+                VersionId TEXT NOT NULL,
+                FileReference TEXT NOT NULL UNIQUE,
+                DisplayName TEXT NOT NULL,
+                FOREIGN KEY (VersionId) REFERENCES DownloadedVersions (Id)
+            );
             CREATE TABLE IF NOT EXISTS EpubTags
             (
-                CopyId TEXT NOT NULL,
+                VersionId TEXT NOT NULL,
                 Category TEXT NOT NULL,
                 Value TEXT NOT NULL,
                 SourceUrl TEXT NULL,
-                PRIMARY KEY (CopyId, Category, Value),
-                FOREIGN KEY (CopyId) REFERENCES EpubCopies (Id)
+                PRIMARY KEY (VersionId, Category, Value),
+                FOREIGN KEY (VersionId) REFERENCES DownloadedVersions (Id)
             );
-            CREATE INDEX IF NOT EXISTS IX_EpubCopies_WorkId ON EpubCopies (WorkId);
-            CREATE INDEX IF NOT EXISTS IX_EpubCopies_Ao3WorkId ON EpubCopies (Ao3WorkId);
+            CREATE INDEX IF NOT EXISTS IX_DownloadedVersions_WorkId ON DownloadedVersions (WorkId);
+            CREATE INDEX IF NOT EXISTS IX_DownloadedVersions_Ao3WorkId ON DownloadedVersions (Ao3WorkId);
+            CREATE INDEX IF NOT EXISTS IX_EpubCopies_VersionId ON EpubCopies (VersionId);
             """;
         command.ExecuteNonQuery();
 
@@ -298,12 +318,14 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             migrate.CommandText = """
                 INSERT INTO Works (Id, Status, PersonalNote)
                 SELECT Id, Status, PersonalNote FROM Works_Legacy;
-                INSERT INTO EpubCopies
-                    (Id, WorkId, FileReference, DisplayName, Title, Author, Description, SourceUrl, Ao3WorkId,
-                     WordCount, IsComplete, AuthorNotes, DownloadedChapterCount, TotalChapterCount, ImportedAt)
-                SELECT Id, Id, FileReference, FileReference, Title, Author, Description, SourceUrl, Ao3WorkId,
-                       WordCount, IsComplete, NULL, NULL, NULL, 0
+                INSERT INTO DownloadedVersions
+                    (Id, WorkId, Title, Author, Description, SourceUrl, Ao3WorkId, WordCount, IsComplete,
+                     AuthorNotes, DownloadedChapterCount, TotalChapterCount, ImportedAt)
+                SELECT Id, Id, Title, Author, Description, SourceUrl, Ao3WorkId, WordCount, IsComplete,
+                       NULL, NULL, NULL, 0
                 FROM Works_Legacy;
+                INSERT INTO EpubCopies (Id, VersionId, FileReference, DisplayName)
+                SELECT Id, Id, FileReference, FileReference FROM Works_Legacy;
                 DROP TABLE Works_Legacy;
                 """;
             migrate.ExecuteNonQuery();
@@ -343,9 +365,10 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            SELECT copies.Id, copies.WorkId, works.Status, works.PersonalNote
+            SELECT copies.Id, copies.VersionId, versions.WorkId, works.Status, works.PersonalNote
             FROM EpubCopies copies
-            INNER JOIN Works works ON works.Id = copies.WorkId
+            INNER JOIN DownloadedVersions versions ON versions.Id = copies.VersionId
+            INNER JOIN Works works ON works.Id = versions.WorkId
             WHERE copies.FileReference = $fileReference
             LIMIT 1;
             """;
@@ -355,48 +378,20 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             ? new ExistingCopy(
                 Guid.Parse(reader.GetString(0)),
                 Guid.Parse(reader.GetString(1)),
-                (ReadingStatus)reader.GetInt32(2),
-                reader.IsDBNull(3) ? null : reader.GetString(3))
+                Guid.Parse(reader.GetString(2)),
+                (ReadingStatus)reader.GetInt32(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4))
             : null;
     }
 
-    private static async Task<ExistingWork?> FindWorkByAo3IdAsync(
-        SqliteConnection connection,
-        SqliteTransaction transaction,
-        string ao3WorkId,
-        CancellationToken cancellationToken)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            SELECT copies.WorkId, works.Status, works.PersonalNote
-            FROM EpubCopies copies
-            INNER JOIN Works works ON works.Id = copies.WorkId
-            WHERE copies.Ao3WorkId = $ao3WorkId
-            ORDER BY copies.ImportedAt DESC
-            LIMIT 1;
-            """;
-        command.Parameters.AddWithValue("$ao3WorkId", ao3WorkId);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        return await reader.ReadAsync(cancellationToken)
-            ? new ExistingWork(
-                Guid.Parse(reader.GetString(0)),
-                (ReadingStatus)reader.GetInt32(1),
-                reader.IsDBNull(2) ? null : reader.GetString(2))
-            : null;
-    }
-
-    private static void AddCopyParameters(
+    private static void AddVersionParameters(
         SqliteCommand command,
-        Guid copyId,
+        Guid versionId,
         Guid workId,
-        EpubMetadata metadata,
-        SourceFile sourceFile)
+        EpubMetadata metadata)
     {
-        command.Parameters.AddWithValue("$id", copyId.ToString("D"));
+        command.Parameters.AddWithValue("$id", versionId.ToString("D"));
         command.Parameters.AddWithValue("$workId", workId.ToString("D"));
-        command.Parameters.AddWithValue("$fileReference", sourceFile.Reference);
-        command.Parameters.AddWithValue("$displayName", sourceFile.DisplayName);
         command.Parameters.AddWithValue("$title", metadata.Title);
         command.Parameters.AddWithValue("$author", (object?)metadata.Author ?? DBNull.Value);
         command.Parameters.AddWithValue("$description", (object?)metadata.Description ?? DBNull.Value);
@@ -410,17 +405,29 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         command.Parameters.AddWithValue("$importedAt", DateTime.UtcNow.Ticks);
     }
 
+    private static void AddCopyParameters(
+        SqliteCommand command,
+        Guid copyId,
+        Guid versionId,
+        SourceFile sourceFile)
+    {
+        command.Parameters.AddWithValue("$id", copyId.ToString("D"));
+        command.Parameters.AddWithValue("$versionId", versionId.ToString("D"));
+        command.Parameters.AddWithValue("$fileReference", sourceFile.Reference);
+        command.Parameters.AddWithValue("$displayName", sourceFile.DisplayName);
+    }
+
     private static async Task ReplaceTagsAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
-        Guid copyId,
+        Guid versionId,
         EpubMetadata metadata,
         CancellationToken cancellationToken)
     {
         await using var delete = connection.CreateCommand();
         delete.Transaction = transaction;
-        delete.CommandText = "DELETE FROM EpubTags WHERE CopyId = $copyId;";
-        delete.Parameters.AddWithValue("$copyId", copyId.ToString("D"));
+        delete.CommandText = "DELETE FROM EpubTags WHERE VersionId = $versionId;";
+        delete.Parameters.AddWithValue("$versionId", versionId.ToString("D"));
         await delete.ExecuteNonQueryAsync(cancellationToken);
 
         var tags = metadata.Tags
@@ -433,10 +440,10 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             await using var insert = connection.CreateCommand();
             insert.Transaction = transaction;
             insert.CommandText = """
-                INSERT INTO EpubTags (CopyId, Category, Value, SourceUrl)
-                VALUES ($copyId, $category, $value, $sourceUrl);
+                INSERT INTO EpubTags (VersionId, Category, Value, SourceUrl)
+                VALUES ($versionId, $category, $value, $sourceUrl);
                 """;
-            insert.Parameters.AddWithValue("$copyId", copyId.ToString("D"));
+            insert.Parameters.AddWithValue("$versionId", versionId.ToString("D"));
             insert.Parameters.AddWithValue("$category", tag.Category);
             insert.Parameters.AddWithValue("$value", tag.Value);
             insert.Parameters.AddWithValue("$sourceUrl", (object?)tag.SourceUrl ?? DBNull.Value);
@@ -446,17 +453,17 @@ public sealed class SqliteCatalogue : IWorkCatalogue
 
     private static async Task<(IReadOnlyList<string> Tags, IReadOnlyList<CategorizedTag> CategorizedTags)> ReadTagsAsync(
         SqliteConnection connection,
-        Guid copyId,
+        Guid versionId,
         CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT Category, Value, SourceUrl
             FROM EpubTags
-            WHERE CopyId = $copyId
+            WHERE VersionId = $versionId
             ORDER BY Category, Value;
             """;
-        command.Parameters.AddWithValue("$copyId", copyId.ToString("D"));
+        command.Parameters.AddWithValue("$versionId", versionId.ToString("D"));
         var tags = new List<string>();
         var categorizedTags = new List<CategorizedTag>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -482,10 +489,11 @@ public sealed class SqliteCatalogue : IWorkCatalogue
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT Id, FileReference, DisplayName
-            FROM EpubCopies
-            WHERE WorkId = $workId
-            ORDER BY DisplayName COLLATE NOCASE;
+            SELECT copies.Id, copies.FileReference, copies.DisplayName
+            FROM EpubCopies copies
+            INNER JOIN DownloadedVersions versions ON versions.Id = copies.VersionId
+            WHERE versions.WorkId = $workId
+            ORDER BY copies.DisplayName COLLATE NOCASE;
             """;
         command.Parameters.AddWithValue("$workId", workId.ToString("D"));
         var copies = new List<CatalogueCopy>();
@@ -513,7 +521,9 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             ReadNullableString(reader, 6),
             ReadNullableInt(reader, 7),
             reader.IsDBNull(8) ? null : reader.GetInt32(8) != 0,
-            reader.GetInt32(9));
+            ReadNullableInt(reader, 9),
+            ReadNullableInt(reader, 10),
+            reader.GetInt32(11));
     }
 
     private static string? ReadNullableString(SqliteDataReader reader, int ordinal)
@@ -532,7 +542,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         SourceFile sourceFile,
         ReadingStatus status,
         string? personalNote,
-        bool wasCreated)
+        bool WasCreated)
     {
         return new ImportedWork(
             id,
@@ -542,7 +552,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             metadata.Ao3WorkId,
             status,
             personalNote,
-            wasCreated)
+            WasCreated)
         {
             Description = metadata.Description,
             Tags = metadata.Tags,
@@ -558,11 +568,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
 
     private readonly record struct ExistingCopy(
         Guid CopyId,
-        Guid WorkId,
-        ReadingStatus Status,
-        string? PersonalNote);
-
-    private readonly record struct ExistingWork(
+        Guid VersionId,
         Guid WorkId,
         ReadingStatus Status,
         string? PersonalNote);

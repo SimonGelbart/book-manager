@@ -39,6 +39,7 @@
           <TextBlock Text="{Binding WorkDetails.Summary.Author, StringFormat='Author: {0}'}" />
           <TextBlock Text="{Binding WorkDetails.Summary.CompletionDisplay, StringFormat='AO3 completion: {0}'}" />
           <TextBlock Text="{Binding WorkDetails.Summary.WordCountDisplay, StringFormat='Words: {0}'}" />
+          <TextBlock Text="{Binding WorkDetails.Summary.ChapterCountDisplay, StringFormat='Chapters: {0}'}" />
           <TextBlock Text="{Binding WorkDetails.Summary.SourceUrl, StringFormat='Source: {0}'}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkDetails.Description}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkDetails.AuthorNotes, StringFormat='Author notes: {0}'}" TextWrapping="Wrap" />
@@ -49,7 +50,17 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <TextBlock Text="{Binding WorkDetails.Copies.Count, StringFormat='Copies: {0}'}" />
+          <TextBlock Text="Copies" FontWeight="Bold" />
+          <ItemsControl ItemsSource="{Binding WorkDetails.Copies}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="app:CatalogueCopy">
+                <StackPanel Margin="0,0,0,4">
+                  <TextBlock Text="{Binding DisplayName}" />
+                  <TextBlock Text="{Binding Reference}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
           <TextBlock FontWeight="Bold" Text="Personal reading record" />
           <TextBox PlaceholderText="Personal note" Text="{Binding PersonalNote}" AcceptsReturn="True" MinHeight="80" />
           <Button Content="Save as Read" Click="SaveReading" HorizontalAlignment="Left" />

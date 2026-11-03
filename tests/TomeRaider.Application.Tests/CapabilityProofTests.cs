@@ -293,6 +293,11 @@ public sealed class CapabilityProofTests
 
             var details = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
                 .GetWorkDetailsAsync(result.Items.Single().Work!.Id);
+            var summary = (await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
+                .GetWorksAsync()).Single();
+            await Assert.That(summary.DownloadedChapterCount).IsEqualTo(10);
+            await Assert.That(summary.TotalChapterCount).IsEqualTo(12);
+            await Assert.That(summary.ChapterCountDisplay).IsEqualTo("10 / 12");
             await Assert.That(details!.CategorizedTags).Contains(
                 new CategorizedTag("Fandoms", "Synthetic Stories", "https://archiveofourown.org/tags/Synthetic%20Stories"));
             await Assert.That(details.AuthorNotes).IsEqualTo("Author note from the second preface.");
@@ -357,7 +362,7 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
-    public async Task GroupsCopiesWithTheSameAo3WorkIdentityUnderOneInternalWork()
+    public async Task KeepsSameAo3IdentityOnSeparateInternalWorksUntilAssociation()
     {
         var workspace = CreateWorkspace();
         try
@@ -370,13 +375,11 @@ public sealed class CapabilityProofTests
             var result = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var importedWorks = result.Items.Select(item => item.Work!).ToArray();
             var works = await application.GetWorksAsync();
-            var details = await application.GetWorkDetailsAsync(works.Single().Id);
 
             await Assert.That(importedWorks).Count().IsEqualTo(2);
-            await Assert.That(importedWorks[0].Id).IsEqualTo(importedWorks[1].Id);
-            await Assert.That(works).Count().IsEqualTo(1);
-            await Assert.That(works.Single().CopyCount).IsEqualTo(2);
-            await Assert.That(details!.Copies).Count().IsEqualTo(2);
+            await Assert.That(importedWorks[0].Id).IsNotEqualTo(importedWorks[1].Id);
+            await Assert.That(works).Count().IsEqualTo(2);
+            await Assert.That(works.All(work => work.CopyCount == 1)).IsTrue();
         }
         finally
         {

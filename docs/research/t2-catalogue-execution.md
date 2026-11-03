@@ -5,9 +5,10 @@ Date: 2026-11-03. Scope: issue [#3 — Durable folder catalogue and metadata](ht
 ## Implemented slice
 
 - The Application boundary now imports folders, exposes durable collection summaries and work details, and reports incomplete scans without treating them as confirmed absence.
-- SQLite stores source-independent Works, EPUB copies, categorized tags, imported descriptions and author notes, while personal reading information remains on the Work.
+- SQLite stores source-independent Works, DownloadedVersions, EPUB copies, categorized tags, imported descriptions and author notes, while personal reading information remains on the Work.
 - EPUB extraction reads all spine documents, including split AO3 prefaces, source links, categorized tag anchors, reported word/chapter statistics, summaries, and author notes.
 - Avalonia presentation displays the collection and selected work details through the Application boundary.
+- T2 keeps separate files with the same AO3 evidence on separate internal Works until the T3 association/review policy is implemented.
 
 ## Executed validation
 

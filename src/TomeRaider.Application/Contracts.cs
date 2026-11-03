@@ -69,6 +69,8 @@ public sealed record CatalogueWorkSummary(
     string? PersonalNote,
     int? WordCount,
     bool? IsComplete,
+    int? DownloadedChapterCount,
+    int? TotalChapterCount,
     int CopyCount)
 {
     public string ReadingStatusDisplay => ReadingStatus.ToString();
@@ -81,6 +83,10 @@ public sealed record CatalogueWorkSummary(
         false => "Unfinished",
         _ => "Unknown"
     };
+
+    public string ChapterCountDisplay => DownloadedChapterCount is null
+        ? "Unknown"
+        : $"{DownloadedChapterCount} / {TotalChapterCount?.ToString() ?? "?"}";
 }
 
 public sealed record CatalogueCopy(
