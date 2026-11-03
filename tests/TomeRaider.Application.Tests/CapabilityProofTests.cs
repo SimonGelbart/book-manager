@@ -92,6 +92,9 @@ public sealed class CapabilityProofTests
         {
             var databasePath = Path.Combine(workspace, "catalogue.sqlite");
             var workId = Guid.NewGuid().ToString("D");
+            var newerWorkId = Guid.NewGuid().ToString("D");
+            var newerVersionId = Guid.NewGuid().ToString("D");
+            var newerCopyId = Guid.NewGuid().ToString("D");
             await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
             {
                 await connection.OpenAsync();
@@ -144,21 +147,41 @@ public sealed class CapabilityProofTests
                         FileReference TEXT NOT NULL UNIQUE,
                         DisplayName TEXT NOT NULL
                     );
+                    INSERT INTO Works (Id, Status, PersonalNote)
+                    VALUES ($newerWorkId, 2, 'Newer note.');
+                    INSERT INTO DownloadedVersions
+                        (Id, WorkId, Title, Author, Description, SourceUrl, Ao3WorkId, WordCount, IsComplete,
+                         AuthorNotes, DownloadedChapterCount, TotalChapterCount, ImportedAt)
+                    VALUES
+                        ($newerVersionId, $newerWorkId, 'Newer Work', 'B. Reader', 'Newer summary.', NULL, NULL, 99, NULL,
+                         NULL, NULL, NULL, 999);
+                    INSERT INTO EpubCopies (Id, VersionId, FileReference, DisplayName)
+                    VALUES ($newerCopyId, $newerVersionId, '/tmp/newer.epub', 'newer.epub');
                     """;
                 command.Parameters.AddWithValue("$id", workId);
+                command.Parameters.AddWithValue("$newerWorkId", newerWorkId);
+                command.Parameters.AddWithValue("$newerVersionId", newerVersionId);
+                command.Parameters.AddWithValue("$newerCopyId", newerCopyId);
                 await command.ExecuteNonQueryAsync();
             }
 
             var catalogue = new SqliteCatalogue(databasePath);
             var works = await catalogue.GetWorksAsync();
-            var summary = works.Single();
+            var summary = works.Single(work => work.Title == "Recovered Work");
             var details = await catalogue.GetWorkDetailsAsync(summary.Id);
+            var newerSummary = works.Single(work => work.Title == "Newer Work");
+            var newerDetails = await catalogue.GetWorkDetailsAsync(newerSummary.Id);
 
+            await Assert.That(works).Count().IsEqualTo(2);
             await Assert.That(summary.Title).IsEqualTo("Recovered Work");
             await Assert.That(summary.ReadingStatus).IsEqualTo(ReadingStatus.Read);
             await Assert.That(summary.PersonalNote).IsEqualTo("Recovered note.");
             await Assert.That(details!.Description).IsEqualTo("Recovered summary.");
             await Assert.That(details.Copies).Count().IsEqualTo(1);
+            await Assert.That(newerSummary.ReadingStatus).IsEqualTo(ReadingStatus.Reading);
+            await Assert.That(newerSummary.PersonalNote).IsEqualTo("Newer note.");
+            await Assert.That(newerDetails!.Description).IsEqualTo("Newer summary.");
+            await Assert.That(newerDetails.Copies).Count().IsEqualTo(1);
         }
         finally
         {
@@ -665,6 +688,54 @@ public sealed class CapabilityProofTests
             await Assert.That(viewModel.WorkDetails).IsNull();
             await Assert.That(viewModel.IsClearCollectionConfirmationVisible).IsFalse();
             await Assert.That(viewModel.StatusMessage).IsEqualTo("Collection cleared.");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task QueuedSaveUsesTheWorkAndNoteSelectedBeforeAnImport()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
+            var secondPath = SyntheticEpub.Create(workspace, "second.epub", "Second Work", "B. Reader");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    new SourceFolder(workspace, "First folder"),
+                    [new SourceFile(firstPath, "first.epub")]));
+            var firstWorkId = firstImport.Items.Single().Work!.Id;
+            var blockingSource = new BlockingFileSource(
+                new SourceFolder(workspace, "Second folder"),
+                new SourceFile(secondPath, "second.epub"));
+            var viewModel = new MainViewModel(new CatalogueSession(application, blockingSource));
+
+            await viewModel.InitializeAsync();
+            await viewModel.SelectWorkAsync(firstWorkId);
+            viewModel.PersonalNote = "Edited before queued save.";
+
+            var importTask = viewModel.SelectFolderAndImportAsync();
+            await blockingSource.EnumerationStarted;
+            var saveTask = viewModel.SaveReadingAsync();
+            var saveCompletedBeforeImportReleased = saveTask.IsCompleted;
+
+            blockingSource.ReleaseEnumeration();
+            await importTask;
+            await saveTask;
+
+            var firstRecord = await application.GetReadingRecordAsync(firstWorkId);
+            var secondWorkId = viewModel.Works.Single(work => work.Title == "Second Work").Id;
+            var secondRecord = await application.GetReadingRecordAsync(secondWorkId);
+
+            await Assert.That(saveCompletedBeforeImportReleased).IsFalse();
+            await Assert.That(firstRecord!.Status).IsEqualTo(ReadingStatus.Read);
+            await Assert.That(firstRecord.PersonalNote).IsEqualTo("Edited before queued save.");
+            await Assert.That(secondRecord!.Status).IsEqualTo(ReadingStatus.Unknown);
         }
         finally
         {

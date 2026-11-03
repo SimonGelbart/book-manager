@@ -74,20 +74,21 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task SaveReadingAsync()
     {
+        var workId = SelectedWork?.Id ?? SelectedItem?.Work?.Id;
+        var title = SelectedWork?.Title ?? SelectedItem?.Work?.Title ?? "work";
+        var personalNote = PersonalNote;
+        if (workId is null)
+        {
+            StatusMessage = "Import a work before saving a reading record.";
+            return;
+        }
+
         await operationGate.WaitAsync();
         try
         {
-            var workId = SelectedWork?.Id ?? SelectedItem?.Work?.Id;
-            if (workId is null)
-            {
-                StatusMessage = "Import a work before saving a reading record.";
-                return;
-            }
-
             try
             {
-                var title = SelectedWork?.Title ?? SelectedItem?.Work?.Title ?? "work";
-                await session.Application.SaveAsReadAsync(workId.Value, PersonalNote);
+                await session.Application.SaveAsReadAsync(workId.Value, personalNote);
                 await LoadWorksAsync();
                 await SelectWorkAsync(workId.Value);
                 StatusMessage = $"Saved Read and note for '{title}'.";

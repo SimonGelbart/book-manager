@@ -285,18 +285,6 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         }
 
         var hasLegacyCatalogue = legacyColumns.Contains("FileReference");
-        if (hasLegacyCatalogue)
-        {
-            using var reset = connection.CreateCommand();
-            reset.Transaction = transaction;
-            reset.CommandText = """
-                DROP TABLE IF EXISTS EpubTags;
-                DROP TABLE IF EXISTS EpubCopies;
-                DROP TABLE IF EXISTS DownloadedVersions;
-                DROP TABLE IF EXISTS Works;
-                """;
-            reset.ExecuteNonQuery();
-        }
 
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -352,15 +340,15 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             using var migrate = connection.CreateCommand();
             migrate.Transaction = transaction;
             migrate.CommandText = """
-                INSERT INTO Works (Id, Status, PersonalNote)
+                INSERT OR IGNORE INTO Works (Id, Status, PersonalNote)
                 SELECT Id, Status, PersonalNote FROM Works_Legacy;
-                INSERT INTO DownloadedVersions
+                INSERT OR IGNORE INTO DownloadedVersions
                     (Id, WorkId, Title, Author, Description, SourceUrl, Ao3WorkId, WordCount, IsComplete,
                      AuthorNotes, DownloadedChapterCount, TotalChapterCount, ImportedAt)
                 SELECT Id, Id, Title, Author, Description, SourceUrl, Ao3WorkId, WordCount, IsComplete,
                        NULL, NULL, NULL, 0
                 FROM Works_Legacy;
-                INSERT INTO EpubCopies (Id, VersionId, FileReference, DisplayName)
+                INSERT OR IGNORE INTO EpubCopies (Id, VersionId, FileReference, DisplayName)
                 SELECT Id, Id, FileReference, FileReference FROM Works_Legacy;
                 DROP TABLE Works_Legacy;
                 """;
