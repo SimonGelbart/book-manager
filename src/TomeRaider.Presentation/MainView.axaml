@@ -16,7 +16,7 @@
       <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
       <Grid ColumnDefinitions="2*,3*" ColumnSpacing="16">
         <StackPanel Grid.Column="0" Spacing="8">
-          <TextBlock FontWeight="Bold" Text="Collection" />
+          <TextBlock FontWeight="Bold" Text="Collection (all saved works)" />
           <ListBox ItemsSource="{Binding Works}"
                    SelectedItem="{Binding SelectedWork}"
                    SelectionChanged="SelectWork"
@@ -25,8 +25,8 @@
               <DataTemplate x:DataType="vm:WorkSummaryViewModel">
                 <StackPanel Margin="4" Spacing="2">
                   <TextBlock FontWeight="Bold" Text="{Binding Title}" TextWrapping="Wrap" />
-                  <TextBlock Text="{Binding Author}" />
-                  <TextBlock Text="{Binding ReadingStatus}" />
+                  <TextBlock Text="{Binding Author, StringFormat='Author: {0}'}" />
+                  <TextBlock Text="{Binding ReadingStatus, StringFormat='Reading status: {0}'}" />
                   <TextBlock Text="{Binding WordCount, StringFormat='Words: {0}'}" />
                 </StackPanel>
               </DataTemplate>
@@ -37,10 +37,11 @@
           <TextBlock FontWeight="Bold" Text="Work details" />
           <TextBlock FontSize="22" FontWeight="Bold" Text="{Binding WorkDetails.Title}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkDetails.Author, StringFormat='Author: {0}'}" />
-          <TextBlock Text="{Binding WorkDetails.Completion, StringFormat='AO3 completion: {0}'}" />
+          <TextBlock Text="{Binding WorkDetails.Completion, StringFormat='Story completion (AO3): {0}'}" />
           <TextBlock Text="{Binding WorkDetails.WordCount, StringFormat='Words: {0}'}" />
           <TextBlock Text="{Binding WorkDetails.Chapters, StringFormat='Chapters: {0}'}" />
           <TextBlock Text="{Binding WorkDetails.SourceUrl, StringFormat='Source: {0}'}" TextWrapping="Wrap" />
+          <TextBlock Text="Description" FontWeight="Bold" />
           <TextBlock Text="{Binding WorkDetails.Description}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding WorkDetails.AuthorNotes, StringFormat='Author notes: {0}'}" TextWrapping="Wrap" />
           <TextBlock Text="Tags" FontWeight="Bold" />
@@ -64,8 +65,8 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="app:CatalogueCopy">
                 <StackPanel Margin="0,0,0,4">
-                  <TextBlock Text="{Binding DisplayName}" />
-                  <TextBlock Text="{Binding Reference}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding DisplayName, StringFormat='File: {0}'}" />
+                  <TextBlock Text="{Binding Reference, StringFormat='Location: {0}'}" TextWrapping="Wrap" />
                 </StackPanel>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
@@ -75,14 +76,14 @@
           <Button Content="Save as Read" Click="SaveReading" HorizontalAlignment="Left" />
         </StackPanel>
       </Grid>
-      <TextBlock FontWeight="Bold" Text="Latest scan results" />
+      <TextBlock FontWeight="Bold" Text="Latest scan results (current import)" />
       <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="app:ImportItemResult">
             <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,0,0,6">
               <StackPanel Spacing="4">
                 <TextBlock FontWeight="Bold" Text="{Binding DisplayText}" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding Work.Author}" />
+                <TextBlock Text="{Binding Work.Author, StringFormat='Author: {0}'}" />
                 <TextBlock Text="{Binding Metadata.Ao3WorkId, StringFormat='AO3 work: {0}'}" />
               </StackPanel>
             </Border>
