@@ -681,6 +681,195 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task RefreshesRelatedReviewsAfterResolvingOneAsNewAndReopening()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            const string sourceUrl = "https://archiveofourown.org/works/24680";
+            var originalPath = SyntheticEpub.Create(
+                workspace,
+                "original.epub",
+                "The Original Work",
+                "A. Writer",
+                sourceUrl);
+            var firstReviewPath = SyntheticEpub.Create(
+                workspace,
+                "first-review.epub",
+                "A Different Work",
+                "A. Writer",
+                sourceUrl);
+            var secondReviewPath = SyntheticEpub.Create(
+                workspace,
+                "second-review.epub",
+                "Another Different Work",
+                "A. Writer",
+                sourceUrl);
+            var folder = new SourceFolder(workspace, "Synthetic folder");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+
+            await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    folder,
+                    [new SourceFile(originalPath, "original.epub")]));
+            var initialImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    folder,
+                    [
+                        new SourceFile(firstReviewPath, "first-review.epub"),
+                        new SourceFile(secondReviewPath, "second-review.epub")
+                    ]));
+            var firstReview = initialImport.Items.Single(item => item.File.DisplayName == "first-review.epub").Review!;
+            var secondReview = initialImport.Items.Single(item => item.File.DisplayName == "second-review.epub").Review!;
+            var original = (await application.GetWorksAsync()).Single();
+
+            await Assert.That(firstReview.Candidates).Count().IsEqualTo(1);
+            await Assert.That(secondReview.Candidates).Count().IsEqualTo(1);
+
+            var newlyCreated = await application.ResolveImportReviewAsNewWorkAsync(firstReview.Id);
+            var reopenedApplication = CreateApplication(databasePath);
+            var refreshedReview = (await reopenedApplication.GetImportReviewsAsync()).Single();
+
+            await Assert.That(refreshedReview.Id).IsEqualTo(secondReview.Id);
+            await Assert.That(refreshedReview.Candidates.Select(candidate => candidate.WorkId))
+                .Contains(newlyCreated.Id);
+            await Assert.That(refreshedReview.Candidates.Select(candidate => candidate.WorkId))
+                .Contains(original.Id);
+
+            var resolved = await reopenedApplication.ResolveImportReviewToExistingWorkAsync(
+                refreshedReview.Id,
+                newlyCreated.Id);
+            var details = await reopenedApplication.GetWorkDetailsAsync(newlyCreated.Id);
+
+            await Assert.That(resolved.Id).IsEqualTo(newlyCreated.Id);
+            await Assert.That(details!.Copies).Count().IsEqualTo(2);
+            await Assert.That(await reopenedApplication.GetImportReviewsAsync()).Count().IsEqualTo(0);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ReusesHistoricalSourceEvidenceAfterAnExplicitAssociation()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            const string firstSource = "https://archiveofourown.org/works/111";
+            const string secondSource = "https://archiveofourown.org/works/222";
+            var firstPath = SyntheticEpub.Create(
+                workspace,
+                "first.epub",
+                "A Shared Work",
+                "A. Writer",
+                firstSource);
+            var secondPath = SyntheticEpub.Create(
+                workspace,
+                "second.epub",
+                "A Shared Work",
+                "A. Writer",
+                secondSource);
+            var thirdPath = SyntheticEpub.Create(
+                workspace,
+                "third.epub",
+                "A Shared Work",
+                "A. Writer",
+                firstSource);
+            var folder = new SourceFolder(workspace, "Synthetic folder");
+            var application = CreateApplication(Path.Combine(workspace, "catalogue.sqlite"));
+
+            var firstImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    folder,
+                    [new SourceFile(firstPath, "first.epub")]));
+            var original = firstImport.Items.Single().Work!;
+            var secondImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    folder,
+                    [new SourceFile(secondPath, "second.epub")]));
+            var review = secondImport.Items.Single().Review!;
+
+            await application.ResolveImportReviewToExistingWorkAsync(review.Id, original.Id);
+            var thirdImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    folder,
+                    [new SourceFile(thirdPath, "third.epub")]));
+
+            await Assert.That(thirdImport.Items.Single().Work!.Id).IsEqualTo(original.Id);
+            await Assert.That(thirdImport.ReviewCount).IsEqualTo(0);
+            await Assert.That((await application.GetWorkDetailsAsync(original.Id))!.Copies).Count().IsEqualTo(3);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task OffersSourceEnrichedCandidatesWhenEitherAuthorIsMissingOrWhitespaceDiffers()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var missingExistingAuthorPath = SyntheticEpub.Create(
+                workspace,
+                "missing-existing-author.epub",
+                "Shared  title",
+                null);
+            var incomingAuthorPath = SyntheticEpub.Create(
+                workspace,
+                "incoming-author.epub",
+                "Shared title",
+                "A. Writer",
+                "https://archiveofourown.org/works/111");
+            var existingAuthorPath = SyntheticEpub.Create(
+                workspace,
+                "existing-author.epub",
+                "Another shared title",
+                "A. Writer");
+            var missingIncomingAuthorPath = SyntheticEpub.Create(
+                workspace,
+                "missing-incoming-author.epub",
+                "Another  shared  title",
+                null,
+                "https://archiveofourown.org/works/222");
+            var folder = new SourceFolder(workspace, "Synthetic folder");
+            var application = CreateApplication(Path.Combine(workspace, "catalogue.sqlite"));
+
+            await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    folder,
+                    [
+                        new SourceFile(missingExistingAuthorPath, "missing-existing-author.epub"),
+                        new SourceFile(existingAuthorPath, "existing-author.epub")
+                    ]));
+            var firstEnrichedImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    folder,
+                    [new SourceFile(incomingAuthorPath, "incoming-author.epub")]));
+            var secondEnrichedImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    folder,
+                    [new SourceFile(missingIncomingAuthorPath, "missing-incoming-author.epub")]));
+
+            var firstReview = firstEnrichedImport.Items.Single().Review!;
+            var secondReview = secondEnrichedImport.Items.Single().Review!;
+
+            await Assert.That(firstReview.Candidates).Count().IsEqualTo(1);
+            await Assert.That(firstReview.Candidates[0].Author).IsNull();
+            await Assert.That(secondReview.Candidates).Count().IsEqualTo(1);
+            await Assert.That(secondReview.Candidates[0].Author).IsEqualTo("A. Writer");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ResolvesImportReviewToExistingWorkWithoutOverwritingPersonalInformation()
     {
         var workspace = CreateWorkspace();
@@ -700,8 +889,6 @@ public sealed class CapabilityProofTests
                 "A Different Work",
                 "A. Writer",
                 sourceUrl,
-                wordCount: 123,
-                status: "Unfinished",
                 description: "Conflicting summary.");
             var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var review = import.Items.Single(item => item.File.DisplayName == "conflict.epub").Review!;
@@ -1022,6 +1209,33 @@ public sealed class CapabilityProofTests
         {
             DeleteWorkspace(workspace);
         }
+    }
+
+    [Test]
+    public async Task ImportReviewViewModelFormatsHtmlDescriptionsAndAuthorNotes()
+    {
+        var review = new ImportReview(
+            Guid.NewGuid(),
+            new SourceFile("/tmp/review.epub", "review.epub"),
+            new EpubMetadata(
+                "A Review Work",
+                "A. Writer",
+                "<p>Summary <em>one</em>.</p><p>Summary two.</p>",
+                "https://archiveofourown.org/works/12345",
+                "12345",
+                [],
+                null,
+                null)
+            {
+                AuthorNotes = "<p>Keep <strong>these</strong> notes readable.</p>"
+            },
+            "Needs confirmation.",
+            []);
+
+        var viewModel = new ImportReviewViewModel(review);
+
+        await Assert.That(viewModel.Description).IsEqualTo("Summary one.\nSummary two.");
+        await Assert.That(viewModel.AuthorNotes).IsEqualTo("Keep these notes readable.");
     }
 
     [Test]

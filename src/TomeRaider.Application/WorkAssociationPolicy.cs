@@ -28,7 +28,7 @@ public static class WorkAssociationPolicy
         return new ImportAssociationDecision(null, reason, candidates);
     }
 
-    private static bool HasCompatibleIdentity(
+    public static bool HasCompatibleIdentity(
         EpubMetadata metadata,
         ImportReviewCandidate candidate)
     {

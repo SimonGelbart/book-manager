@@ -9,7 +9,7 @@ internal static class SyntheticEpub
         string directory,
         string fileName,
         string title,
-        string author,
+        string? author,
         string? ao3Url = null,
         int? wordCount = null,
         string? status = null,

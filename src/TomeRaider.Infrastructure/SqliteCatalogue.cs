@@ -37,6 +37,19 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         }
 
         await using var connection = OpenConnection();
+        return await FindAssociationCandidatesAsync(connection, metadata, cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<ImportReviewCandidate>> FindAssociationCandidatesAsync(
+        SqliteConnection connection,
+        EpubMetadata metadata,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(metadata.Ao3WorkId))
+        {
+            return [];
+        }
+
         var sourceCandidates = await FindCandidateWorksAsync(
             connection,
             null,
@@ -186,7 +199,11 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         var reviews = new List<ImportReview>(reviewRows.Count);
         foreach (var row in reviewRows)
         {
-            var candidates = await ReadReviewCandidatesAsync(connection, row.Id, cancellationToken);
+            var candidates = await FindAssociationCandidatesAsync(connection, row.Metadata, cancellationToken);
+            if (candidates.Count == 0)
+            {
+                candidates = await ReadReviewCandidatesAsync(connection, row.Id, cancellationToken);
+            }
             reviews.Add(new ImportReview(row.Id, row.File, row.Metadata, row.Reason, candidates));
         }
 
@@ -234,12 +251,6 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         }
         else
         {
-            if (storedReview.Candidates.All(candidate => candidate.WorkId != targetWorkId.Value))
-            {
-                throw new InvalidOperationException(
-                    $"Work '{targetWorkId}' is not a candidate for import review '{reviewId}'.");
-            }
-
             (status, personalNote) = await ReadWorkRecordAsync(
                 connection,
                 transaction,
@@ -608,7 +619,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 FROM DownloadedVersions
                 WHERE Ao3WorkId = $ao3WorkId
             )
-            SELECT candidates.WorkId, current.Title, current.Author, current.Ao3WorkId,
+            SELECT candidates.WorkId, current.Title, current.Author, $ao3WorkId,
                    works.Status, works.PersonalNote,
                    COUNT(copies.Id)
             FROM CandidateIds candidates
@@ -617,7 +628,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 ON current.WorkId = candidates.WorkId AND current.RowNumber = 1
             LEFT JOIN DownloadedVersions versions ON versions.WorkId = candidates.WorkId
             LEFT JOIN EpubCopies copies ON copies.VersionId = versions.Id
-            GROUP BY candidates.WorkId, current.Title, current.Author, current.Ao3WorkId,
+            GROUP BY candidates.WorkId, current.Title, current.Author,
                      works.Status, works.PersonalNote
             ORDER BY current.Title COLLATE NOCASE;
             """;
@@ -659,8 +670,6 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 SELECT WorkId
                 FROM CurrentMetadata
                 WHERE RowNumber = 1
-                  AND Title = $title COLLATE NOCASE
-                  AND ($author IS NULL OR Author = $author COLLATE NOCASE)
             )
             SELECT candidates.WorkId, current.Title, current.Author, current.Ao3WorkId,
                    works.Status, works.PersonalNote,
@@ -675,9 +684,6 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                      works.Status, works.PersonalNote
             ORDER BY current.Title COLLATE NOCASE;
             """;
-        command.Parameters.AddWithValue("$title", metadata.Title);
-        command.Parameters.AddWithValue("$author", (object?)metadata.Author ?? DBNull.Value);
-
         var candidates = new List<ImportReviewCandidate>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -694,7 +700,9 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             });
         }
 
-        return candidates;
+        return candidates
+            .Where(candidate => WorkAssociationPolicy.HasCompatibleIdentity(metadata, candidate))
+            .ToArray();
     }
 
     private static async Task<ImportReview> SaveImportReviewAsync(

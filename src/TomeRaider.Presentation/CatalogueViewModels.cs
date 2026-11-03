@@ -21,16 +21,6 @@ public sealed class WorkSummaryViewModel(CatalogueWorkSummary summary)
 
 public sealed class WorkDetailsViewModel(CatalogueWorkDetails details)
 {
-    private static readonly Regex BlockElementPattern = new(
-        @"</?(?:p|div|br|li|h[1-6]|blockquote)\b[^>]*>",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-    private static readonly Regex HtmlTagPattern = new(
-        @"<[^>]+>",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
-    private static readonly Regex HorizontalWhitespacePattern = new(
-        @"[ \t]+",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     private readonly IReadOnlyList<TagGroupViewModel> tagGroups = details.CategorizedTags
         .GroupBy(tag => tag.Category, StringComparer.OrdinalIgnoreCase)
         .Select(group => new TagGroupViewModel(group.Key, group.Select(tag => tag.Value).ToArray()))
@@ -57,43 +47,14 @@ public sealed class WorkDetailsViewModel(CatalogueWorkDetails details)
         ? "Unknown"
         : $"{details.Summary.DownloadedChapterCount} / {details.Summary.TotalChapterCount?.ToString() ?? "?"}";
 
-    public string? Description => ToPlainText(details.Description);
+    public string? Description => MetadataFormatting.ToPlainText(details.Description);
 
-    public string? AuthorNotes => ToPlainText(details.AuthorNotes);
+    public string? AuthorNotes => MetadataFormatting.ToPlainText(details.AuthorNotes);
 
     public IReadOnlyList<TagGroupViewModel> TagGroups => tagGroups;
 
     public IReadOnlyList<CatalogueCopy> Copies => details.Copies;
 
-    private static string? ToPlainText(string? html)
-    {
-        if (string.IsNullOrWhiteSpace(html))
-        {
-            return html;
-        }
-
-        var decoded = WebUtility.HtmlDecode(html);
-        decoded = BlockElementPattern.Replace(decoded, "\n");
-        decoded = HtmlTagPattern.Replace(decoded, string.Empty);
-        decoded = WebUtility.HtmlDecode(decoded);
-
-        var lines = decoded
-            .Split('\n')
-            .Select(line => HorizontalWhitespacePattern.Replace(line.Trim(), " "))
-            .ToArray();
-        var compactLines = new List<string>();
-        foreach (var line in lines)
-        {
-            if (line.Length == 0)
-            {
-                continue;
-            }
-
-            compactLines.Add(line);
-        }
-
-        return string.Join('\n', compactLines).Trim();
-    }
 }
 
 public sealed class ImportReviewViewModel(ImportReview review)
@@ -112,7 +73,7 @@ public sealed class ImportReviewViewModel(ImportReview review)
 
     public string? Ao3WorkId => review.Metadata.Ao3WorkId;
 
-    public string? Description => review.Metadata.Description;
+    public string? Description => MetadataFormatting.ToPlainText(review.Metadata.Description);
 
     public string WordCount => review.Metadata.WordCount?.ToString("N0") ?? "Unknown";
 
@@ -129,7 +90,7 @@ public sealed class ImportReviewViewModel(ImportReview review)
 
     public string Tags => string.Join(", ", review.Metadata.Tags);
 
-    public string? AuthorNotes => review.Metadata.AuthorNotes;
+    public string? AuthorNotes => MetadataFormatting.ToPlainText(review.Metadata.AuthorNotes);
 
     public IReadOnlyList<TagGroupViewModel> TagGroups => review.Metadata.CategorizedTags
         .GroupBy(tag => tag.Category, StringComparer.OrdinalIgnoreCase)
@@ -141,6 +102,40 @@ public sealed class ImportReviewViewModel(ImportReview review)
     public IReadOnlyList<ImportReviewCandidateViewModel> Candidates => review.Candidates
         .Select(candidate => new ImportReviewCandidateViewModel(review.Id, candidate))
         .ToArray();
+}
+
+internal static class MetadataFormatting
+{
+    private static readonly Regex BlockElementPattern = new(
+        @"</?(?:p|div|br|li|h[1-6]|blockquote)\b[^>]*>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex HtmlTagPattern = new(
+        @"<[^>]+>",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex HorizontalWhitespacePattern = new(
+        @"[ \t]+",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    public static string? ToPlainText(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return html;
+        }
+
+        var decoded = WebUtility.HtmlDecode(html);
+        decoded = BlockElementPattern.Replace(decoded, "\n");
+        decoded = HtmlTagPattern.Replace(decoded, string.Empty);
+        decoded = WebUtility.HtmlDecode(decoded);
+
+        var lines = decoded
+            .Split('\n')
+            .Select(line => HorizontalWhitespacePattern.Replace(line.Trim(), " "))
+            .Where(line => line.Length > 0)
+            .ToArray();
+
+        return string.Join('\n', lines).Trim();
+    }
 }
 
 public sealed class ImportReviewCandidateViewModel(
