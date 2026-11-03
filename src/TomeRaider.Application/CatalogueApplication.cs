@@ -78,6 +78,27 @@ public sealed class CatalogueApplication
         return catalogue.GetReadingRecordAsync(workId, cancellationToken);
     }
 
+    public Task<IReadOnlyList<ImportReview>> GetImportReviewsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return catalogue.GetImportReviewsAsync(cancellationToken);
+    }
+
+    public Task<ImportedWork> ResolveImportReviewAsNewWorkAsync(
+        Guid reviewId,
+        CancellationToken cancellationToken = default)
+    {
+        return ResolveImportReviewAsNewWorkWithGateAsync(reviewId, cancellationToken);
+    }
+
+    public Task<ImportedWork> ResolveImportReviewToExistingWorkAsync(
+        Guid reviewId,
+        Guid workId,
+        CancellationToken cancellationToken = default)
+    {
+        return ResolveImportReviewToExistingWorkWithGateAsync(reviewId, workId, cancellationToken);
+    }
+
     public Task<IReadOnlyList<CatalogueWorkSummary>> GetWorksAsync(
         CancellationToken cancellationToken = default)
     {
@@ -126,6 +147,37 @@ public sealed class CatalogueApplication
         }
     }
 
+    private async Task<ImportedWork> ResolveImportReviewAsNewWorkWithGateAsync(
+        Guid reviewId,
+        CancellationToken cancellationToken)
+    {
+        await mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await catalogue.ResolveImportReviewAsNewWorkAsync(reviewId, cancellationToken);
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
+    }
+
+    private async Task<ImportedWork> ResolveImportReviewToExistingWorkWithGateAsync(
+        Guid reviewId,
+        Guid workId,
+        CancellationToken cancellationToken)
+    {
+        await mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await catalogue.ResolveImportReviewToExistingWorkAsync(reviewId, workId, cancellationToken);
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
+    }
+
     private async Task<ImportResult> ImportFolderAsync(
         IFileSource fileSource,
         SourceFolder folder,
@@ -142,8 +194,12 @@ public sealed class CatalogueApplication
                 {
                     await using var epub = await fileSource.OpenReadAsync(file, cancellationToken);
                     var metadata = await metadataExtractor.ExtractAsync(epub, cancellationToken);
-                    var work = await catalogue.ImportAsync(metadata, file, cancellationToken);
-                    results.Add(new ImportItemResult(file, work, metadata, null));
+                    var candidates = await catalogue.FindAssociationCandidatesAsync(
+                        metadata,
+                        cancellationToken);
+                    var decision = WorkAssociationPolicy.Decide(metadata, candidates);
+                    var import = await catalogue.ImportAsync(metadata, file, decision, cancellationToken);
+                    results.Add(new ImportItemResult(file, import.Work, metadata, null, import.Review));
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {

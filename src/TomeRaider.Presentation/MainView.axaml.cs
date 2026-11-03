@@ -56,6 +56,24 @@ public partial class MainView : UserControl
         }
     }
 
+    private async void ResolveReviewAsNew(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Button { DataContext: ImportReviewViewModel review })
+        {
+            await viewModel.ResolveImportReviewAsNewAsync(review.Id);
+        }
+    }
+
+    private async void ResolveReviewToExisting(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Button { Tag: ImportReviewCandidateViewModel candidate })
+        {
+            await viewModel.ResolveImportReviewToExistingAsync(candidate.ReviewId, candidate.WorkId);
+        }
+    }
+
     private void RequestClearCollection(object? sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel)

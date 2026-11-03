@@ -16,6 +16,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<ImportItemResult> Items { get; } = [];
 
+    public ObservableCollection<ImportReviewViewModel> Reviews { get; } = [];
+
     public ObservableCollection<WorkSummaryViewModel> Works { get; } = [];
 
     [ObservableProperty]
@@ -57,6 +59,7 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             await LoadWorksAsync();
+            await LoadReviewsAsync();
             if (SelectedWork is not null)
             {
                 await SelectWorkAsync(SelectedWork.Id);
@@ -104,6 +107,16 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    public Task ResolveImportReviewAsNewAsync(Guid reviewId)
+    {
+        return ResolveImportReviewAsync(reviewId, null);
+    }
+
+    public Task ResolveImportReviewToExistingAsync(Guid reviewId, Guid workId)
+    {
+        return ResolveImportReviewAsync(reviewId, workId);
+    }
+
     public void RequestClearCollection()
     {
         IsClearCollectionConfirmationVisible = true;
@@ -124,6 +137,7 @@ public sealed partial class MainViewModel : ObservableObject
                 await session.Application.ClearCatalogueAsync();
                 Items.Clear();
                 Works.Clear();
+                Reviews.Clear();
                 SelectedItem = null;
                 SelectedWork = null;
                 WorkDetails = null;
@@ -168,6 +182,7 @@ public sealed partial class MainViewModel : ObservableObject
 
                 SelectedItem = Items.FirstOrDefault(item => item.Succeeded);
                 await LoadWorksAsync();
+                await LoadReviewsAsync();
                 if (SelectedItem?.Work is { } importedWork)
                 {
                     await SelectWorkAsync(importedWork.Id);
@@ -178,17 +193,19 @@ public sealed partial class MainViewModel : ObservableObject
                 }
                 else if (result.ScanError is not null)
                 {
-                    StatusMessage = result.FailureCount == 0
-                        ? $"Imported {result.SuccessCount} EPUB file(s), but the scan was incomplete: {result.ScanError}"
-                        : $"Imported {result.SuccessCount} EPUB file(s); {result.FailureCount} failed, and the scan was incomplete: {result.ScanError}";
+                    StatusMessage =
+                        $"Imported {result.SuccessCount} EPUB file(s); {result.FailureCount} failed; "
+                        + $"{result.ReviewCount} needs review, and the scan was incomplete: {result.ScanError}";
                 }
-                else if (result.FailureCount == 0)
+                else if (result.FailureCount == 0 && result.ReviewCount == 0)
                 {
                     StatusMessage = $"Imported {result.SuccessCount} EPUB file(s) from {result.Folder?.DisplayName}.";
                 }
                 else
                 {
-                    StatusMessage = $"Imported {result.SuccessCount} EPUB file(s); {result.FailureCount} failed from {result.Folder?.DisplayName}.";
+                    StatusMessage =
+                        $"Imported {result.SuccessCount} EPUB file(s); {result.FailureCount} failed; "
+                        + $"{result.ReviewCount} needs review from {result.Folder?.DisplayName}.";
                 }
             }
             catch (Exception exception)
@@ -219,6 +236,50 @@ public sealed partial class MainViewModel : ObservableObject
         else
         {
             SelectedWork = Works.FirstOrDefault();
+        }
+    }
+
+    private async Task LoadReviewsAsync()
+    {
+        var reviews = await session.Application.GetImportReviewsAsync();
+        Reviews.Clear();
+        foreach (var review in reviews)
+        {
+            Reviews.Add(new ImportReviewViewModel(review));
+        }
+    }
+
+    private async Task ResolveImportReviewAsync(Guid reviewId, Guid? workId)
+    {
+        await operationGate.WaitAsync();
+        try
+        {
+            try
+            {
+                var resolved = workId is null
+                    ? await session.Application.ResolveImportReviewAsNewWorkAsync(reviewId)
+                    : await session.Application.ResolveImportReviewToExistingWorkAsync(reviewId, workId.Value);
+                var item = Items.FirstOrDefault(candidate => candidate.Review?.Id == reviewId);
+                if (item is not null)
+                {
+                    Items.Remove(item);
+                }
+
+                await LoadReviewsAsync();
+                await LoadWorksAsync();
+                await SelectWorkAsync(resolved.Id);
+                StatusMessage = workId is null
+                    ? $"Resolved import review as new work '{resolved.Title}'."
+                    : $"Associated import review with '{resolved.Title}'.";
+            }
+            catch (Exception exception)
+            {
+                StatusMessage = $"Could not resolve the import review: {exception.Message}";
+            }
+        }
+        finally
+        {
+            operationGate.Release();
         }
     }
 }
