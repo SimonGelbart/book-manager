@@ -27,10 +27,11 @@ extension transitively, and the repository selects Microsoft.Testing.Platform in
 ```sh
 dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj \
   --configuration Release --no-restore --coverage \
-  --coverage-output artifacts/coverage/application.cobertura.xml \
+  --coverage-output application.cobertura.xml \
   --coverage-output-format cobertura
 ```
 
+The report is written below that test project's `TestResults` directory.
 Review the overall and per-module line/branch rates in the report, then inspect
 uncovered behavior and assertion strength. Do not use the aggregate percentage
 as a quality threshold by itself. Focused TUnit runs use
