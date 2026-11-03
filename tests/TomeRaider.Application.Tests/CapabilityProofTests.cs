@@ -578,6 +578,113 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task KeepsConflictingSourceIdentityInDurableImportReview()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            const string sourceUrl = "https://archiveofourown.org/works/24680";
+            SyntheticEpub.Create(workspace, "original.epub", "The Same Work", "A. Writer", sourceUrl);
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var original = firstImport.Items.Single(item => item.File.DisplayName == "original.epub").Work!;
+            await application.SaveReadingRecordAsync(original.Id, ReadingStatus.Read, "Keep this record.");
+
+            SyntheticEpub.Create(workspace, "conflict.epub", "A Different Work", "A. Writer", sourceUrl);
+            var result = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var reviewItem = result.Items.Single(item => item.File.DisplayName == "conflict.epub");
+            var reviews = await application.GetImportReviewsAsync();
+            var works = await application.GetWorksAsync();
+
+            await Assert.That(reviewItem.NeedsReview).IsTrue();
+            await Assert.That(reviewItem.Review!.File.Reference).IsEqualTo(Path.Combine(workspace, "conflict.epub"));
+            await Assert.That(reviewItem.Review.Metadata.Title).IsEqualTo("A Different Work");
+            await Assert.That(reviews).Count().IsEqualTo(1);
+            await Assert.That(reviews[0].Candidates).Count().IsEqualTo(1);
+            await Assert.That(reviews[0].Candidates[0].WorkId).IsEqualTo(original.Id);
+            await Assert.That(reviews[0].Candidates[0].ReadingStatus).IsEqualTo(ReadingStatus.Read);
+            await Assert.That(reviews[0].Candidates[0].PersonalNote).IsEqualTo("Keep this record.");
+            await Assert.That(works).Count().IsEqualTo(1);
+            await Assert.That(works[0].CopyCount).IsEqualTo(1);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ResolvesImportReviewToExistingWorkWithoutOverwritingPersonalInformation()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            const string sourceUrl = "https://archiveofourown.org/works/24680";
+            SyntheticEpub.Create(workspace, "original.epub", "The Same Work", "A. Writer", sourceUrl);
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var original = firstImport.Items.Single(item => item.File.DisplayName == "original.epub").Work!;
+            await application.SaveReadingRecordAsync(original.Id, ReadingStatus.Read, "Keep this record.");
+
+            SyntheticEpub.Create(workspace, "conflict.epub", "A Different Work", "A. Writer", sourceUrl);
+            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var review = import.Items.Single(item => item.File.DisplayName == "conflict.epub").Review!;
+            var resolved = await application.ResolveImportReviewToExistingWorkAsync(review.Id, original.Id);
+            var recovered = await application.GetReadingRecordAsync(original.Id);
+            var details = await application.GetWorkDetailsAsync(original.Id);
+
+            await Assert.That(resolved.Id).IsEqualTo(original.Id);
+            await Assert.That(resolved.WasCreated).IsFalse();
+            await Assert.That(recovered!.Status).IsEqualTo(ReadingStatus.Read);
+            await Assert.That(recovered.PersonalNote).IsEqualTo("Keep this record.");
+            await Assert.That(await application.GetImportReviewsAsync()).Count().IsEqualTo(0);
+            await Assert.That(details!.Copies).Count().IsEqualTo(2);
+            await Assert.That(details.Copies.Any(copy => copy.Reference.EndsWith("conflict.epub"))).IsTrue();
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ResolvesImportReviewAsNewWorkWithoutChangingExistingWork()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            const string sourceUrl = "https://archiveofourown.org/works/24680";
+            SyntheticEpub.Create(workspace, "original.epub", "The Same Work", "A. Writer", sourceUrl);
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var original = firstImport.Items.Single(item => item.File.DisplayName == "original.epub").Work!;
+            await application.SaveReadingRecordAsync(original.Id, ReadingStatus.Read, "Keep this record.");
+
+            SyntheticEpub.Create(workspace, "conflict.epub", "A Different Work", "A. Writer", sourceUrl);
+            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var review = import.Items.Single(item => item.File.DisplayName == "conflict.epub").Review!;
+            var resolved = await application.ResolveImportReviewAsNewWorkAsync(review.Id);
+            var works = await application.GetWorksAsync();
+            var recovered = await application.GetReadingRecordAsync(original.Id);
+
+            await Assert.That(resolved.Id).IsNotEqualTo(original.Id);
+            await Assert.That(resolved.WasCreated).IsTrue();
+            await Assert.That(works).Count().IsEqualTo(2);
+            await Assert.That(works.Single(work => work.Id == original.Id).PersonalNote)
+                .IsEqualTo("Keep this record.");
+            await Assert.That(recovered!.Status).IsEqualTo(ReadingStatus.Read);
+            await Assert.That(await application.GetImportReviewsAsync()).Count().IsEqualTo(0);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ReportsAnIncompleteScanWithoutDiscardingTheDurableCatalogue()
     {
         var workspace = CreateWorkspace();
