@@ -135,7 +135,7 @@ public sealed record ImportResult(
 {
     public int SuccessCount => Items.Count(item => item.Succeeded);
 
-    public int FailureCount => Items.Count - SuccessCount;
+    public int FailureCount => Items.Count(item => !item.Succeeded && !item.NeedsReview);
 
     public int ReviewCount => Items.Count(item => item.NeedsReview);
 

@@ -96,6 +96,50 @@ public sealed class WorkDetailsViewModel(CatalogueWorkDetails details)
     }
 }
 
+public sealed class ImportReviewViewModel(ImportReview review)
+{
+    public Guid Id => review.Id;
+
+    public string FileName => review.File.DisplayName;
+
+    public string Location => review.File.Reference;
+
+    public string Title => review.Metadata.Title;
+
+    public string? Author => review.Metadata.Author;
+
+    public string? SourceUrl => review.Metadata.SourceUrl;
+
+    public string? Ao3WorkId => review.Metadata.Ao3WorkId;
+
+    public string Reason => review.Reason;
+
+    public IReadOnlyList<ImportReviewCandidateViewModel> Candidates => review.Candidates
+        .Select(candidate => new ImportReviewCandidateViewModel(review.Id, candidate))
+        .ToArray();
+}
+
+public sealed class ImportReviewCandidateViewModel(
+    Guid reviewId,
+    ImportReviewCandidate candidate)
+{
+    public Guid ReviewId => reviewId;
+
+    public Guid WorkId => candidate.WorkId;
+
+    public string Title => candidate.Title;
+
+    public string? Author => candidate.Author;
+
+    public string ReadingStatus => candidate.ReadingStatus.ToString();
+
+    public string PersonalInformation => string.IsNullOrWhiteSpace(candidate.PersonalNote)
+        ? "No personal note"
+        : $"Note: {candidate.PersonalNote}";
+
+    public int CopyCount => candidate.CopyCount;
+}
+
 public sealed record TagGroupViewModel(string Category, IReadOnlyList<string> Values)
 {
     public string Header => $"{Category} ({Values.Count})";

@@ -28,6 +28,45 @@
         </StackPanel>
       </Border>
       <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+      <TextBlock FontWeight="Bold" Text="Needs review" />
+      <ItemsControl ItemsSource="{Binding Reviews}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ImportReviewViewModel">
+            <Border BorderBrush="DarkOrange" BorderThickness="1" Padding="8" Margin="0,0,0,6">
+              <StackPanel Spacing="4">
+                <TextBlock FontWeight="Bold" Text="{Binding FileName, StringFormat='Review: {0}'}" />
+                <TextBlock Text="{Binding Location, StringFormat='Location: {0}'}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Title, StringFormat='Title: {0}'}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Author, StringFormat='Author: {0}'}" />
+                <TextBlock Text="{Binding Ao3WorkId, StringFormat='AO3 work: {0}'}" />
+                <TextBlock Text="{Binding SourceUrl, StringFormat='Source: {0}'}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Reason}" TextWrapping="Wrap" />
+                <Button Content="Identify as a new work" Click="ResolveReviewAsNew" HorizontalAlignment="Left" />
+                <TextBlock FontWeight="Bold" Text="Possible existing works" />
+                <ItemsControl ItemsSource="{Binding Candidates}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ImportReviewCandidateViewModel">
+                      <Border BorderBrush="Gray" BorderThickness="1" Padding="6" Margin="0,0,0,4">
+                        <StackPanel Spacing="2">
+                          <TextBlock FontWeight="Bold" Text="{Binding Title}" />
+                          <TextBlock Text="{Binding Author, StringFormat='Author: {0}'}" />
+                          <TextBlock Text="{Binding ReadingStatus, StringFormat='Reading status: {0}'}" />
+                          <TextBlock Text="{Binding PersonalInformation}" TextWrapping="Wrap" />
+                          <TextBlock Text="{Binding CopyCount, StringFormat='Copies: {0}'}" />
+                          <Button Content="Associate with this work"
+                                  Tag="{Binding}"
+                                  Click="ResolveReviewToExisting"
+                                  HorizontalAlignment="Left" />
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
       <Grid ColumnDefinitions="2*,3*" ColumnSpacing="16">
         <StackPanel Grid.Column="0" Spacing="8">
           <TextBlock FontWeight="Bold" Text="Collection (all saved works)" />

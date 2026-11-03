@@ -615,6 +615,27 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task OrdinaryEpubWithoutSourceIdentityDoesNotNeedReview()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "ordinary.epub", "An Ordinary EPUB", "A. Reader");
+
+            var application = CreateApplication(Path.Combine(workspace, "catalogue.sqlite"));
+            var result = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+
+            await Assert.That(result.Items.Single().Succeeded).IsTrue();
+            await Assert.That(result.ReviewCount).IsEqualTo(0);
+            await Assert.That(await application.GetImportReviewsAsync()).Count().IsEqualTo(0);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ResolvesImportReviewToExistingWorkWithoutOverwritingPersonalInformation()
     {
         var workspace = CreateWorkspace();
@@ -736,6 +757,45 @@ public sealed class CapabilityProofTests
             await Assert.That(viewModel.WorkDetails).IsNotNull();
             await Assert.That(viewModel.WorkDetails!.Description).IsEqualTo("A browseable summary.");
             await Assert.That(viewModel.WorkDetails.Copies).Count().IsEqualTo(1);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ViewModelShowsAndResolvesImportReview()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            const string sourceUrl = "https://archiveofourown.org/works/24680";
+            SyntheticEpub.Create(workspace, "original.epub", "The Same Work", "A. Writer", sourceUrl);
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var viewModel = new MainViewModel(
+                new CatalogueSession(application, new PhysicalFileSource(workspace)));
+
+            await viewModel.SelectFolderAndImportAsync();
+            var original = viewModel.Works.Single();
+            await application.SaveReadingRecordAsync(original.Id, ReadingStatus.Read, "Keep this record.");
+            SyntheticEpub.Create(workspace, "conflict.epub", "A Different Work", "A. Writer", sourceUrl);
+
+            await viewModel.SelectFolderAndImportAsync();
+            var review = viewModel.Reviews.Single();
+
+            await Assert.That(review.FileName).IsEqualTo("conflict.epub");
+            await Assert.That(review.Location).IsEqualTo(Path.Combine(workspace, "conflict.epub"));
+            await Assert.That(review.Title).IsEqualTo("A Different Work");
+            await Assert.That(review.Candidates).Count().IsEqualTo(1);
+
+            await viewModel.ResolveImportReviewToExistingAsync(review.Id, review.Candidates[0].WorkId);
+
+            await Assert.That(viewModel.Reviews).Count().IsEqualTo(0);
+            await Assert.That(viewModel.Works).Count().IsEqualTo(1);
+            await Assert.That(viewModel.WorkDetails!.Copies).Count().IsEqualTo(2);
+            await Assert.That(viewModel.StatusMessage).Contains("Associated import review");
         }
         finally
         {
