@@ -147,7 +147,8 @@ internal static class SyntheticEpub
         string author,
         string ao3Url,
         string description,
-        string authorNotes)
+        string authorNotes,
+        bool useOfficialAo3Structure = false)
     {
         var path = Path.Combine(directory, fileName);
         using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
@@ -208,14 +209,9 @@ internal static class SyntheticEpub
             $"""
             <html xmlns="http://www.w3.org/1999/xhtml"><body>
               <div id="preface">
-                <div class="meta group">
-                  <h3 class="heading">Summary:</h3>
-                  <div class="userstuff">{description}</div>
-                </div>
-                <div class="meta group">
-                  <h3 class="heading">Author's Notes:</h3>
-                  <div class="userstuff">{authorNotes}</div>
-                </div>
+                {(useOfficialAo3Structure
+                    ? $"<div class=\"meta\"><p>Summary</p><blockquote class=\"userstuff\">{description}</blockquote></div><div class=\"meta\"><p>Notes</p><blockquote class=\"userstuff\">{authorNotes}</blockquote></div>"
+                    : $"<div class=\"meta group\"><h3 class=\"heading\">Summary:</h3><div class=\"userstuff\">{description}</div></div><div class=\"meta group\"><h3 class=\"heading\">Author's Notes:</h3><div class=\"userstuff\">{authorNotes}</div></div>")}
               </div>
             </body></html>
             """);

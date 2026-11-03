@@ -62,13 +62,16 @@ public sealed record CatalogueWorkSummary(
     string? Author,
     string? SourceUrl,
     string? Ao3WorkId,
-    string ReadingStatus,
+    ReadingStatus ReadingStatus,
     string? PersonalNote,
     int? WordCount,
     bool? IsComplete,
     int? DownloadedChapterCount,
     int? TotalChapterCount,
-    int CopyCount);
+    int CopyCount)
+{
+    public string ReadingStatusText => ReadingStatus.ToString();
+}
 
 public sealed record CatalogueCopy(
     Guid Id,

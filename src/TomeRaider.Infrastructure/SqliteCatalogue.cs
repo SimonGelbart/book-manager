@@ -182,16 +182,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
     {
         await using var connection = OpenConnection();
         await using var command = connection.CreateCommand();
-        command.CommandText = CurrentMetadataQuery + """
-            SELECT w.Id, current.Title, current.Author, current.SourceUrl, current.Ao3WorkId,
-                   w.Status, w.PersonalNote, current.WordCount, current.IsComplete,
-                   current.DownloadedChapterCount, current.TotalChapterCount,
-                   (SELECT COUNT(*)
-                    FROM EpubCopies copyCount
-                    INNER JOIN DownloadedVersions versionCount ON versionCount.Id = copyCount.VersionId
-                    WHERE versionCount.WorkId = w.Id)
-            FROM Works w
-            INNER JOIN CurrentMetadata current ON current.WorkId = w.Id AND current.RowNumber = 1
+        command.CommandText = CurrentMetadataQuery + SummaryProjection + "\n" + SummaryFromClause + "\n" + """
             ORDER BY current.Title COLLATE NOCASE;
             """;
 
@@ -211,17 +202,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
     {
         await using var connection = OpenConnection();
         await using var summaryCommand = connection.CreateCommand();
-        summaryCommand.CommandText = CurrentMetadataQuery + """
-            SELECT w.Id, current.Title, current.Author, current.SourceUrl, current.Ao3WorkId,
-                   w.Status, w.PersonalNote, current.WordCount, current.IsComplete,
-                   current.DownloadedChapterCount, current.TotalChapterCount,
-                   (SELECT COUNT(*)
-                    FROM EpubCopies copyCount
-                    INNER JOIN DownloadedVersions versionCount ON versionCount.Id = copyCount.VersionId
-                    WHERE versionCount.WorkId = w.Id),
-                   current.Id
-            FROM Works w
-            INNER JOIN CurrentMetadata current ON current.WorkId = w.Id AND current.RowNumber = 1
+        summaryCommand.CommandText = CurrentMetadataQuery + SummaryProjection + ", current.Id\n" + SummaryFromClause + "\n" + """
             WHERE w.Id = $id;
             """;
         summaryCommand.Parameters.AddWithValue("$id", workId.ToString("D"));
@@ -268,20 +249,58 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         )
         """;
 
+    private const string SummaryProjection = """
+        SELECT w.Id, current.Title, current.Author, current.SourceUrl, current.Ao3WorkId,
+               w.Status, w.PersonalNote, current.WordCount, current.IsComplete,
+               current.DownloadedChapterCount, current.TotalChapterCount,
+               (SELECT COUNT(*)
+                FROM EpubCopies copyCount
+                INNER JOIN DownloadedVersions versionCount ON versionCount.Id = copyCount.VersionId
+                WHERE versionCount.WorkId = w.Id)
+        """;
+
+    private const string SummaryFromClause = """
+        FROM Works w
+        INNER JOIN CurrentMetadata current ON current.WorkId = w.Id AND current.RowNumber = 1
+        """;
+
     private void Initialize()
     {
         using var connection = OpenConnection();
-        var legacyColumns = ReadColumns(connection, "Works");
-        if (legacyColumns.Contains("FileReference"))
+        using var transaction = connection.BeginTransaction();
+        var worksColumns = ReadColumns(connection, "Works", transaction);
+        var legacyColumns = ReadColumns(connection, "Works_Legacy", transaction);
+        if (worksColumns.Contains("FileReference") && legacyColumns.Contains("FileReference"))
+        {
+            throw new InvalidOperationException("The catalogue contains two incomplete legacy schemas.");
+        }
+
+        if (worksColumns.Contains("FileReference"))
         {
             using var rename = connection.CreateCommand();
+            rename.Transaction = transaction;
             rename.CommandText = "ALTER TABLE Works RENAME TO Works_Legacy;";
             rename.ExecuteNonQuery();
+            legacyColumns = worksColumns;
+        }
+
+        var hasLegacyCatalogue = legacyColumns.Contains("FileReference");
+        if (hasLegacyCatalogue)
+        {
+            using var reset = connection.CreateCommand();
+            reset.Transaction = transaction;
+            reset.CommandText = """
+                DROP TABLE IF EXISTS EpubTags;
+                DROP TABLE IF EXISTS EpubCopies;
+                DROP TABLE IF EXISTS DownloadedVersions;
+                DROP TABLE IF EXISTS Works;
+                """;
+            reset.ExecuteNonQuery();
         }
 
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
-            PRAGMA foreign_keys = ON;
             CREATE TABLE IF NOT EXISTS Works
             (
                 Id TEXT NOT NULL PRIMARY KEY,
@@ -328,9 +347,10 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             """;
         command.ExecuteNonQuery();
 
-        if (legacyColumns.Contains("FileReference"))
+        if (hasLegacyCatalogue)
         {
             using var migrate = connection.CreateCommand();
+            migrate.Transaction = transaction;
             migrate.CommandText = """
                 INSERT INTO Works (Id, Status, PersonalNote)
                 SELECT Id, Status, PersonalNote FROM Works_Legacy;
@@ -346,6 +366,8 @@ public sealed class SqliteCatalogue : IWorkCatalogue
                 """;
             migrate.ExecuteNonQuery();
         }
+
+        transaction.Commit();
     }
 
     private SqliteConnection OpenConnection()
@@ -358,9 +380,13 @@ public sealed class SqliteCatalogue : IWorkCatalogue
         return connection;
     }
 
-    private static HashSet<string> ReadColumns(SqliteConnection connection, string tableName)
+    private static HashSet<string> ReadColumns(
+        SqliteConnection connection,
+        string tableName,
+        SqliteTransaction? transaction = null)
     {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = $"PRAGMA table_info({tableName});";
         using var reader = command.ExecuteReader();
         var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -533,7 +559,7 @@ public sealed class SqliteCatalogue : IWorkCatalogue
             ReadNullableString(reader, 2),
             ReadNullableString(reader, 3),
             ReadNullableString(reader, 4),
-            ((ReadingStatus)reader.GetInt32(5)).ToString(),
+            (ReadingStatus)reader.GetInt32(5),
             ReadNullableString(reader, 6),
             ReadNullableInt(reader, 7),
             reader.IsDBNull(8) ? null : reader.GetInt32(8) != 0,

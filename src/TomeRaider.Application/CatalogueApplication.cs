@@ -4,6 +4,7 @@ public sealed class CatalogueApplication
 {
     private readonly IEpubMetadataExtractor metadataExtractor;
     private readonly IWorkCatalogue catalogue;
+    private readonly SemaphoreSlim mutationGate = new(1, 1);
 
     public CatalogueApplication(
         IEpubMetadataExtractor metadataExtractor,
@@ -17,20 +18,36 @@ public sealed class CatalogueApplication
         IFileSource fileSource,
         CancellationToken cancellationToken = default)
     {
-        var folder = await fileSource.SelectFolderAsync(cancellationToken);
-        return folder is null
-            ? new ImportResult(null, [], WasCancelled: true)
-            : await ImportFolderAsync(fileSource, folder, cancellationToken);
+        await mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var folder = await fileSource.SelectFolderAsync(cancellationToken);
+            return folder is null
+                ? new ImportResult(null, [], WasCancelled: true)
+                : await ImportFolderAsync(fileSource, folder, cancellationToken);
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
     }
 
     public async Task<ImportResult> ImportRememberedFolderAsync(
         IFileSource fileSource,
         CancellationToken cancellationToken = default)
     {
-        var folder = await fileSource.RestoreFolderAsync(cancellationToken);
-        return folder is null
-            ? new ImportResult(null, [], WasCancelled: true)
-            : await ImportFolderAsync(fileSource, folder, cancellationToken);
+        await mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var folder = await fileSource.RestoreFolderAsync(cancellationToken);
+            return folder is null
+                ? new ImportResult(null, [], WasCancelled: true)
+                : await ImportFolderAsync(fileSource, folder, cancellationToken);
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
     }
 
     public Task SaveReadingRecordAsync(
@@ -39,7 +56,7 @@ public sealed class CatalogueApplication
         string? personalNote,
         CancellationToken cancellationToken = default)
     {
-        return catalogue.SaveReadingRecordAsync(workId, status, personalNote, cancellationToken);
+        return SaveReadingRecordWithGateAsync(workId, status, personalNote, cancellationToken);
     }
 
     public Task SaveAsReadAsync(
@@ -76,7 +93,37 @@ public sealed class CatalogueApplication
 
     public Task ClearCatalogueAsync(CancellationToken cancellationToken = default)
     {
-        return catalogue.ClearAsync(cancellationToken);
+        return ClearCatalogueWithGateAsync(cancellationToken);
+    }
+
+    private async Task SaveReadingRecordWithGateAsync(
+        Guid workId,
+        TomeRaider.Domain.ReadingStatus status,
+        string? personalNote,
+        CancellationToken cancellationToken)
+    {
+        await mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            await catalogue.SaveReadingRecordAsync(workId, status, personalNote, cancellationToken);
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
+    }
+
+    private async Task ClearCatalogueWithGateAsync(CancellationToken cancellationToken)
+    {
+        await mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            await catalogue.ClearAsync(cancellationToken);
+        }
+        finally
+        {
+            mutationGate.Release();
+        }
     }
 
     private async Task<ImportResult> ImportFolderAsync(

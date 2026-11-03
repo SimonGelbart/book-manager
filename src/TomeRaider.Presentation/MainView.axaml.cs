@@ -21,12 +21,14 @@ public partial class MainView : UserControl
         AttachedToVisualTree += OnAttachedToVisualTree;
     }
 
-    private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    private async void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel is not null && DataContext is null)
         {
-            DataContext = new MainViewModel(sessionFactory(topLevel.StorageProvider));
+            var viewModel = new MainViewModel(sessionFactory(topLevel.StorageProvider));
+            DataContext = viewModel;
+            await viewModel.InitializeAsync();
         }
     }
 

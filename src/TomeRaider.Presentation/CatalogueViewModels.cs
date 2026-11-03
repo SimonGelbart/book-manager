@@ -12,7 +12,7 @@ public sealed class WorkSummaryViewModel(CatalogueWorkSummary summary)
 
     public string? Author => summary.Author;
 
-    public string ReadingStatus => summary.ReadingStatus;
+    public string ReadingStatus => summary.ReadingStatusText;
 
     public string WordCount => summary.WordCount?.ToString("N0") ?? "Unknown";
 

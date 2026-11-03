@@ -357,31 +357,42 @@ public sealed class EpubMetadataExtractor : IEpubMetadataExtractor
                 || string.Equals((string?)element.Attribute("id"), "author-notes", StringComparison.OrdinalIgnoreCase)
                 || HasClass(element, "notes"));
         return notes is null
-            ? FindLabeledSection(preface, "author")
+            ? FindLabeledSection(preface, "author's notes", "author notes", "notes")
             : GetElementText(notes);
     }
 
-    private static string? FindLabeledSection(XDocument document, string label)
+    private static string? FindLabeledSection(XDocument document, params string[] labels)
     {
         foreach (var group in document
                      .Descendants(XhtmlNamespace + "div")
-                     .Where(element => HasClass(element, "meta") && HasClass(element, "group")))
+                     .Where(element => HasClass(element, "meta")))
         {
             var heading = group
                 .Descendants()
-                .FirstOrDefault(element => HasClass(element, "heading"));
-            if (heading is null || !heading.Value.Contains(label, StringComparison.OrdinalIgnoreCase))
+                .Where(IsSectionLabel)
+                .FirstOrDefault(element => labels.Any(label =>
+                    string.Equals(
+                        GetElementText(element).Trim().TrimEnd(':'),
+                        label,
+                        StringComparison.OrdinalIgnoreCase)));
+            if (heading is null)
             {
                 continue;
             }
 
-            var userstuff = group
-                .Descendants(XhtmlNamespace + "div")
-                .FirstOrDefault(element => HasClass(element, "userstuff"));
-            return GetElementText(userstuff ?? group);
+            var userstuff = heading
+                .ElementsAfterSelf()
+                .FirstOrDefault(element => HasClass(element, "userstuff") || element.Name == XhtmlNamespace + "blockquote")
+                ?? heading.ElementsAfterSelf().FirstOrDefault();
+            return userstuff is null ? null : GetElementText(userstuff);
         }
 
         return null;
+    }
+
+    private static bool IsSectionLabel(XElement element)
+    {
+        return element.Name.LocalName is "h1" or "h2" or "h3" or "h4" or "h5" or "h6" or "p";
     }
 
     private static XElement? FindElementById(XDocument document, string id)

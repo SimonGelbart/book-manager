@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using TomeRaider.Application;
 using TomeRaider.Domain;
 using TomeRaider.Infrastructure;
@@ -76,6 +77,118 @@ public sealed class CapabilityProofTests
             await Assert.That(await application.GetWorksAsync()).Count().IsEqualTo(0);
             await Assert.That(await application.GetReadingRecordAsync(workId)).IsNull();
             await Assert.That(await application.GetWorkDetailsAsync(workId)).IsNull();
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task RecoversCatalogueFromAnInterruptedLegacyMigration()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var workId = Guid.NewGuid().ToString("D");
+            await using (var connection = new SqliteConnection($"Data Source={databasePath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE Works_Legacy
+                    (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        Title TEXT NOT NULL,
+                        Author TEXT NULL,
+                        Description TEXT NULL,
+                        SourceUrl TEXT NULL,
+                        Ao3WorkId TEXT NULL,
+                        WordCount INTEGER NULL,
+                        IsComplete INTEGER NULL,
+                        Status INTEGER NOT NULL,
+                        PersonalNote TEXT NULL,
+                        FileReference TEXT NOT NULL UNIQUE
+                    );
+                    INSERT INTO Works_Legacy
+                        (Id, Title, Author, Description, SourceUrl, Ao3WorkId, WordCount, IsComplete, Status, PersonalNote, FileReference)
+                    VALUES
+                        ($id, 'Recovered Work', 'A. Reader', 'Recovered summary.', 'https://archiveofourown.org/works/54321', '54321', 1234, 1, 3, 'Recovered note.', '/tmp/recovered.epub');
+                    CREATE TABLE Works
+                    (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        Status INTEGER NOT NULL,
+                        PersonalNote TEXT NULL
+                    );
+                    CREATE TABLE DownloadedVersions
+                    (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        WorkId TEXT NOT NULL,
+                        Title TEXT NOT NULL,
+                        Author TEXT NULL,
+                        Description TEXT NULL,
+                        SourceUrl TEXT NULL,
+                        Ao3WorkId TEXT NULL,
+                        WordCount INTEGER NULL,
+                        IsComplete INTEGER NULL,
+                        AuthorNotes TEXT NULL,
+                        DownloadedChapterCount INTEGER NULL,
+                        TotalChapterCount INTEGER NULL,
+                        ImportedAt INTEGER NOT NULL
+                    );
+                    CREATE TABLE EpubCopies
+                    (
+                        Id TEXT NOT NULL PRIMARY KEY,
+                        VersionId TEXT NOT NULL,
+                        FileReference TEXT NOT NULL UNIQUE,
+                        DisplayName TEXT NOT NULL
+                    );
+                    """;
+                command.Parameters.AddWithValue("$id", workId);
+                await command.ExecuteNonQueryAsync();
+            }
+
+            var catalogue = new SqliteCatalogue(databasePath);
+            var works = await catalogue.GetWorksAsync();
+            var summary = works.Single();
+            var details = await catalogue.GetWorkDetailsAsync(summary.Id);
+
+            await Assert.That(summary.Title).IsEqualTo("Recovered Work");
+            await Assert.That(summary.ReadingStatus).IsEqualTo(ReadingStatus.Read);
+            await Assert.That(summary.PersonalNote).IsEqualTo("Recovered note.");
+            await Assert.That(details!.Description).IsEqualTo("Recovered summary.");
+            await Assert.That(details.Copies).Count().IsEqualTo(1);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ClearWaitsForAnActiveImportBeforeRemovingTheCatalogue()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var epubPath = SyntheticEpub.Create(workspace, "blocked.epub", "A Blocked Import", "A. Reader");
+            var source = new BlockingFileSource(
+                new SourceFolder(workspace, "Blocking folder"),
+                new SourceFile(epubPath, "blocked.epub"));
+            var application = CreateApplication(Path.Combine(workspace, "catalogue.sqlite"));
+
+            var importTask = application.ImportSelectedFolderAsync(source);
+            await source.EnumerationStarted;
+            var clearTask = application.ClearCatalogueAsync();
+            var clearCompletedBeforeImportReleased = clearTask.IsCompleted;
+
+            source.ReleaseEnumeration();
+            await importTask;
+            await clearTask;
+
+            await Assert.That(clearCompletedBeforeImportReleased).IsFalse();
+            await Assert.That(await application.GetWorksAsync()).Count().IsEqualTo(0);
         }
         finally
         {
@@ -332,6 +445,35 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task ParsesOfficialAo3SummaryAndNotesSections()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.CreateSplitPreface(
+                workspace,
+                "official-preface.epub",
+                "An Official Template Work",
+                "A. Writer",
+                "https://archiveofourown.org/works/24680",
+                description: "Summary from the official template shape.",
+                authorNotes: "Notes from the official template shape.",
+                useOfficialAo3Structure: true);
+
+            var result = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
+                .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var metadata = result.Items.Single().Metadata!;
+
+            await Assert.That(metadata.Description).IsEqualTo("Summary from the official template shape.");
+            await Assert.That(metadata.AuthorNotes).IsEqualTo("Notes from the official template shape.");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ReopensCollectionDetailsAndRetainsPersonalInformationOnUnchangedRescan()
     {
         var workspace = CreateWorkspace();
@@ -360,7 +502,7 @@ public sealed class CapabilityProofTests
 
             await Assert.That(summary.Id).IsEqualTo(originalWork.Id);
             await Assert.That(summary.Title).IsEqualTo("A Durable Generic Work");
-            await Assert.That(summary.ReadingStatus).IsEqualTo(nameof(ReadingStatus.Reading));
+            await Assert.That(summary.ReadingStatus).IsEqualTo(ReadingStatus.Reading);
             await Assert.That(summary.PersonalNote).IsEqualTo("Keep this personal note.");
             await Assert.That(summary.WordCount).IsNull();
             await Assert.That(summary.CopyCount).IsEqualTo(1);
@@ -376,7 +518,7 @@ public sealed class CapabilityProofTests
 
             var afterRescan = (await reopenedApplication.GetWorksAsync()).Single();
             await Assert.That(afterRescan.PersonalNote).IsEqualTo("Keep this personal note.");
-            await Assert.That(afterRescan.ReadingStatus).IsEqualTo(nameof(ReadingStatus.Reading));
+            await Assert.That(afterRescan.ReadingStatus).IsEqualTo(ReadingStatus.Reading);
         }
         finally
         {
@@ -462,6 +604,35 @@ public sealed class CapabilityProofTests
             await Assert.That(viewModel.WorkDetails).IsNotNull();
             await Assert.That(viewModel.WorkDetails!.Description).IsEqualTo("A browseable summary.");
             await Assert.That(viewModel.WorkDetails.Copies).Count().IsEqualTo(1);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ViewModelInitializesFromTheSavedCollection()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            SyntheticEpub.Create(workspace, "saved.epub", "A Saved Work", "A. Reader");
+            await CreateApplication(databasePath)
+                .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+
+            var viewModel = new MainViewModel(
+                new CatalogueSession(
+                    CreateApplication(databasePath),
+                    new PhysicalFileSource(workspace)));
+
+            await viewModel.InitializeAsync();
+
+            await Assert.That(viewModel.Works).Count().IsEqualTo(1);
+            await Assert.That(viewModel.Works.Single().Title).IsEqualTo("A Saved Work");
+            await Assert.That(viewModel.WorkDetails).IsNotNull();
+            await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("A Saved Work");
         }
         finally
         {
@@ -785,6 +956,46 @@ public sealed class CapabilityProofTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult<Stream>(File.OpenRead(file.Reference));
+        }
+    }
+
+    private sealed class BlockingFileSource(
+        SourceFolder folder,
+        SourceFile file) : IFileSource
+    {
+        private readonly TaskCompletionSource<bool> enumerationStartedSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> releaseSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task EnumerationStarted => enumerationStartedSource.Task;
+
+        public void ReleaseEnumeration()
+        {
+            releaseSource.TrySetResult(true);
+        }
+
+        public Task<SourceFolder?> SelectFolderAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<SourceFolder?>(folder);
+        }
+
+        public Task<SourceFolder?> RestoreFolderAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<SourceFolder?>(folder);
+        }
+
+        public async IAsyncEnumerable<SourceFile> EnumerateEpubsAsync(
+            SourceFolder sourceFolder,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            enumerationStartedSource.TrySetResult(true);
+            await releaseSource.Task.WaitAsync(cancellationToken);
+            yield return file;
+        }
+
+        public Task<Stream> OpenReadAsync(SourceFile sourceFile, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<Stream>(File.OpenRead(sourceFile.Reference));
         }
     }
 
