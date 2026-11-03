@@ -16,7 +16,8 @@ internal static class SyntheticEpub
         string? description = null,
         string? packageSourceUrl = null,
         string? chapterMarkup = null,
-        string? statsText = null)
+        string? statsText = null,
+        string ao3MessageIntro = "Posted originally on the")
     {
         var path = Path.Combine(directory, fileName);
         using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
@@ -48,7 +49,7 @@ internal static class SyntheticEpub
         var prefaceSpine = hasPreface ? "<itemref idref=\"preface\" />" : string.Empty;
         var prefaceMessage = ao3Url is null
             ? string.Empty
-            : $"<p class=\"message\">Posted originally on the <a href=\"http://archiveofourown.org/\">Archive of Our Own</a> at <a href=\"{ao3Url}\">{ao3Url}</a>.</p>";
+            : $"<p class=\"message\">{ao3MessageIntro} <a href=\"http://archiveofourown.org/\">Archive of Our Own</a> at <a href=\"{ao3Url}\">{ao3Url}</a>.</p>";
         var prefaceStats = statsText ?? string.Join(
             " ",
             new[]

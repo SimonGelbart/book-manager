@@ -60,6 +60,18 @@ public sealed class CapabilityProofTests
     }
 
     [Test]
+    public async Task ExtractsAo3WorkFromOriginallyPostedPrefaceMessage()
+    {
+        await AssertAo3PrefaceMessageAsync("Originally posted on the");
+    }
+
+    [Test]
+    public async Task ExtractsAo3WorkFromPostedOriginallyPrefaceMessage()
+    {
+        await AssertAo3PrefaceMessageAsync("Posted originally on the");
+    }
+
+    [Test]
     public async Task ReportsCancelledFolderSelectionInsteadOfPassingAnEmptyImport()
     {
         var workspace = CreateWorkspace();
@@ -386,6 +398,33 @@ public sealed class CapabilityProofTests
         return new CatalogueApplication(
             new EpubMetadataExtractor(),
             new SqliteCatalogue(databasePath));
+    }
+
+    private static async Task AssertAo3PrefaceMessageAsync(string messageIntro)
+    {
+        const string ao3Url = "https://archiveofourown.org/works/12345";
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(
+                workspace,
+                "ao3.epub",
+                "An AO3 Work",
+                "A. Writer",
+                ao3Url,
+                ao3MessageIntro: messageIntro);
+
+            var result = await CreateApplication(Path.Combine(workspace, "catalogue.sqlite"))
+                .ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var metadata = result.Items.Single().Metadata!;
+
+            await Assert.That(metadata.Ao3WorkId).IsEqualTo("12345");
+            await Assert.That(metadata.SourceUrl).IsEqualTo(ao3Url);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
     }
 
     private static string CreateWorkspace()
