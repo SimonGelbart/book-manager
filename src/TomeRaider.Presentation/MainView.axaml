@@ -93,7 +93,6 @@
           <TextBlock FontWeight="Bold" Text="Collection (all saved works)" />
           <ListBox ItemsSource="{Binding Works}"
                    x:Name="WorksList"
-                   SelectedItem="{Binding SelectedWork, Mode=OneWay}"
                    SelectionChanged="SelectWork"
                    MinHeight="180">
             <ListBox.ItemTemplate>

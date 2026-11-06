@@ -1,13 +1,17 @@
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 
 namespace TomeRaider.Presentation;
 
 public partial class MainView : UserControl
 {
     private readonly Func<IStorageProvider, CatalogueSession> sessionFactory;
+    private MainViewModel? observedViewModel;
+    private Guid? programmaticSelectionIdToIgnore;
 
     public MainView()
         : this(_ => throw new InvalidOperationException("The host composition is not available in the designer."))
@@ -18,7 +22,52 @@ public partial class MainView : UserControl
     {
         this.sessionFactory = sessionFactory;
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
         AttachedToVisualTree += OnAttachedToVisualTree;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (observedViewModel is not null)
+        {
+            observedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        }
+
+        observedViewModel = DataContext as MainViewModel;
+        if (observedViewModel is not null)
+        {
+            observedViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            SyncSelectedWork(observedViewModel);
+        }
+
+        programmaticSelectionIdToIgnore = null;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.SelectedWork)
+            && sender is MainViewModel viewModel)
+        {
+            SyncSelectedWork(viewModel);
+        }
+    }
+
+    private void SyncSelectedWork(MainViewModel viewModel)
+    {
+        if (!WorksList.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (ReferenceEquals(DataContext, viewModel))
+                {
+                    SyncSelectedWork(viewModel);
+                }
+            });
+            return;
+        }
+
+        programmaticSelectionIdToIgnore = viewModel.SelectedWork?.Id;
+        WorksList.SetCurrentValue(ListBox.SelectedItemProperty, viewModel.SelectedWork);
     }
 
     private async void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
@@ -101,9 +150,15 @@ public partial class MainView : UserControl
     private async void SelectWork(object? sender, SelectionChangedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel
-            && sender is ListBox { SelectedItem: WorkSummaryViewModel work }
-            && viewModel.SelectedWork?.Id != work.Id)
+            && sender is ListBox { SelectedItem: WorkSummaryViewModel work })
         {
+            if (programmaticSelectionIdToIgnore == work.Id)
+            {
+                programmaticSelectionIdToIgnore = null;
+                return;
+            }
+
+            programmaticSelectionIdToIgnore = null;
             await viewModel.SelectWorkAsync(work.Id);
         }
     }

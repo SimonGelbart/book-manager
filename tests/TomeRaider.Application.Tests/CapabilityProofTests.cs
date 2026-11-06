@@ -1,5 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using System.Collections;
+using System.Reflection;
 using TomeRaider.Application;
 using TomeRaider.Domain;
 using TomeRaider.Infrastructure;
@@ -249,13 +252,14 @@ public sealed class CapabilityProofTests
             var saveTask = application.SaveAsReadAsync(firstWorkId, "Queued through the Application gate.");
             await Task.Yield();
 
-            var saveCompletedBeforeImportReleased = saveTask.IsCompleted;
+            var recordBeforeImportReleased = await application.GetReadingRecordAsync(firstWorkId);
             blockingSource?.ReleaseEnumeration();
             await importTask.WaitAsync(ConcurrencyTimeout);
             await saveTask.WaitAsync(ConcurrencyTimeout);
 
             var record = await application.GetReadingRecordAsync(firstWorkId);
-            await Assert.That(saveCompletedBeforeImportReleased).IsFalse();
+            await Assert.That(recordBeforeImportReleased!.Status).IsEqualTo(ReadingStatus.Unknown);
+            await Assert.That(recordBeforeImportReleased.PersonalNote).IsNull();
             await Assert.That(record!.Status).IsEqualTo(ReadingStatus.Read);
             await Assert.That(record.PersonalNote).IsEqualTo("Queued through the Application gate.");
         }
@@ -1356,7 +1360,7 @@ public sealed class CapabilityProofTests
         }
     }
 
-    [Test]
+    [Test, NotInParallel("Avalonia")]
     public async Task MainViewDoesNotReplayProgrammaticSelectionChanges()
     {
         var workspace = CreateWorkspace();
@@ -1387,6 +1391,92 @@ public sealed class CapabilityProofTests
         }
         finally
         {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test, NotInParallel("Avalonia")]
+    public async Task MainViewPreservesTheLatestUserSelectionDuringAnActiveImport()
+    {
+        var workspace = CreateWorkspace();
+        BlockingFileSource? blockingSource = null;
+        Task? importTask = null;
+        try
+        {
+            var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
+            var secondPath = SyntheticEpub.Create(workspace, "second.epub", "Second Work", "B. Reader");
+            var thirdPath = SyntheticEpub.Create(workspace, "third.epub", "Third Work", "C. Reader");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var initialImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    new SourceFolder(workspace, "Initial folder"),
+                    [new SourceFile(firstPath, "first.epub"), new SourceFile(secondPath, "second.epub")]));
+            var firstWorkId = initialImport.Items.Single(item => item.Work?.Title == "First Work").Work!.Id;
+            var secondWorkId = initialImport.Items.Single(item => item.Work?.Title == "Second Work").Work!.Id;
+
+            blockingSource = new BlockingFileSource(
+                new SourceFolder(workspace, "Third folder"),
+                new SourceFile(thirdPath, "third.epub"));
+            var viewModel = new MainViewModel(new CatalogueSession(application, blockingSource));
+            await viewModel.InitializeAsync();
+            var firstWork = viewModel.Works.Single(work => work.Id == firstWorkId);
+            var secondWork = viewModel.Works.Single(work => work.Id == secondWorkId);
+            var view = new MainView();
+            view.DataContext = viewModel;
+            var worksList = view.FindControl<ListBox>("WorksList");
+            var finalDetailsLoaded = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            viewModel.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(MainViewModel.WorkDetails)
+                    && viewModel.WorkDetails?.Title == "First Work")
+                {
+                    finalDetailsLoaded.TrySetResult(true);
+                }
+            };
+
+            await Assert.That(worksList).IsNotNull();
+            importTask = viewModel.SelectFolderAndImportAsync();
+            await blockingSource.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
+            worksList!.SetCurrentValue(ListBox.SelectedItemProperty, secondWork);
+            var selectWork = typeof(MainView).GetMethod(
+                "SelectWork",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            selectWork.Invoke(
+                view,
+                [
+                    worksList,
+                    new SelectionChangedEventArgs(
+                        ListBox.SelectionChangedEvent,
+                        new ArrayList { secondWork },
+                        new ArrayList())
+                ]);
+            worksList.SetCurrentValue(ListBox.SelectedItemProperty, firstWork);
+            selectWork.Invoke(
+                view,
+                [
+                    worksList,
+                    new SelectionChangedEventArgs(
+                        ListBox.SelectionChangedEvent,
+                        new ArrayList { firstWork },
+                        new ArrayList { secondWork })
+                ]);
+
+            await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
+            await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+
+            blockingSource.ReleaseEnumeration();
+            await importTask.WaitAsync(ConcurrencyTimeout);
+            await finalDetailsLoaded.Task.WaitAsync(ConcurrencyTimeout);
+
+            await Assert.That(((WorkSummaryViewModel)worksList.SelectedItem!).Id).IsEqualTo(firstWorkId);
+            await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
+            await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+        }
+        finally
+        {
+            await DrainBlockedOperationsAsync(blockingSource, importTask, null);
             DeleteWorkspace(workspace);
         }
     }
