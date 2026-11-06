@@ -35,3 +35,28 @@ jobs:
 
       - name: Run architecture tests
         run: dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --no-restore
+
+  android-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up the pinned .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install the pinned Android workload
+        run: dotnet workload install android --version 10.0.402
+
+      - name: Re-evaluate the Android package lock
+        run: dotnet restore src/TomeRaider.Android/TomeRaider.Android.csproj --force-evaluate
+
+      - name: Verify the Android package lock is committed
+        run: |
+          if ! git diff --quiet -- src/TomeRaider.Android/packages.lock.json; then
+            echo '::error file=src/TomeRaider.Android/packages.lock.json::Android package lock is stale. Run dotnet restore src/TomeRaider.Android/TomeRaider.Android.csproj --force-evaluate and commit the generated lock file.'
+            git diff -- src/TomeRaider.Android/packages.lock.json
+            exit 1
+          fi
