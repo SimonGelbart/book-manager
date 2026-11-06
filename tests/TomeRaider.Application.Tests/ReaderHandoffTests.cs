@@ -12,148 +12,113 @@ public sealed class ReaderHandoffTests
     [Test]
     public async Task OpensTheRequestedCopyWithoutChangingTheReadingRecord()
     {
-        var workspace = CreateWorkspace();
-        try
-        {
-            const string sourceUrl = "https://archiveofourown.org/works/12345";
-            SyntheticEpub.Create(workspace, "first.epub", "A Selected Work", "A. Reader", sourceUrl);
-            SyntheticEpub.Create(workspace, "second.epub", "A Selected Work", "A. Reader", sourceUrl);
-            var launcher = new ControlledReaderLauncher(file => file.DisplayName == "second.epub"
-                ? ReaderLaunchResult.LaunchRequested("Requested the second EPUB.")
-                : ReaderLaunchResult.LaunchFailed("The wrong EPUB was selected."));
-            var application = CreateApplication(workspace, launcher);
+        using var workspace = TestWorkspace.Create();
+        const string sourceUrl = "https://archiveofourown.org/works/12345";
+        SyntheticEpub.Create(workspace.Path, "first.epub", "A Selected Work", "A. Reader", sourceUrl);
+        SyntheticEpub.Create(workspace.Path, "second.epub", "A Selected Work", "A. Reader", sourceUrl);
+        var launcher = new ControlledReaderLauncher(file => file.DisplayName == "second.epub"
+            ? ReaderLaunchResult.LaunchRequested("Requested the second EPUB.")
+            : ReaderLaunchResult.LaunchFailed("The wrong EPUB was selected."));
+        var application = CreateApplication(workspace.Path, launcher);
 
-            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
-            var work = import.Items.First(item => item.Work is not null).Work!;
-            await application.SaveReadingRecordAsync(work.Id, ReadingStatus.Reading, "Keep this note.");
-            var details = await application.GetWorkDetailsAsync(work.Id);
-            var selectedCopy = details!.Copies.Single(copy => copy.DisplayName == "second.epub");
+        var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace.Path));
+        var work = import.Items.First(item => item.Work is not null).Work!;
+        await application.SaveReadingRecordAsync(work.Id, ReadingStatus.Reading, "Keep this note.");
+        var details = await application.GetWorkDetailsAsync(work.Id);
+        var selectedCopy = details!.Copies.Single(copy => copy.DisplayName == "second.epub");
 
-            var result = await application.OpenCopyAsync(work.Id, selectedCopy.Id);
+        var result = await application.OpenCopyAsync(work.Id, selectedCopy.Id);
 
-            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.LaunchRequested);
-            await Assert.That(result.Message).IsEqualTo("Requested the second EPUB.");
-            var readingRecord = await application.GetReadingRecordAsync(work.Id);
-            await Assert.That(readingRecord).IsNotNull();
-            await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Reading);
-            await Assert.That(readingRecord.PersonalNote).IsEqualTo("Keep this note.");
-        }
-        finally
-        {
-            DeleteWorkspace(workspace);
-        }
+        await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.LaunchRequested);
+        await Assert.That(result.Message).IsEqualTo("Requested the second EPUB.");
+        var readingRecord = await application.GetReadingRecordAsync(work.Id);
+        await Assert.That(readingRecord).IsNotNull();
+        await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Reading);
+        await Assert.That(readingRecord.PersonalNote).IsEqualTo("Keep this note.");
     }
 
     [Test]
     public async Task ReportsAnInaccessibleCopyAndPreservesTheReadingRecord()
     {
-        var workspace = CreateWorkspace();
-        try
-        {
-            SyntheticEpub.Create(workspace, "missing.epub", "An Unavailable Work", "A. Reader");
-            var launcher = new ControlledReaderLauncher(_ =>
-                ReaderLaunchResult.FileUnavailable("The EPUB file is no longer available."));
-            var application = CreateApplication(workspace, launcher);
-            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
-            var work = import.Items.Single().Work!;
-            await application.SaveReadingRecordAsync(work.Id, ReadingStatus.Read, "Already read.");
-            var copy = (await application.GetWorkDetailsAsync(work.Id))!.Copies.Single();
+        using var workspace = TestWorkspace.Create();
+        SyntheticEpub.Create(workspace.Path, "missing.epub", "An Unavailable Work", "A. Reader");
+        var launcher = new ControlledReaderLauncher(_ =>
+            ReaderLaunchResult.FileUnavailable("The EPUB file is no longer available."));
+        var application = CreateApplication(workspace.Path, launcher);
+        var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace.Path));
+        var work = import.Items.Single().Work!;
+        await application.SaveReadingRecordAsync(work.Id, ReadingStatus.Read, "Already read.");
+        var copy = (await application.GetWorkDetailsAsync(work.Id))!.Copies.Single();
 
-            var result = await application.OpenCopyAsync(work.Id, copy.Id);
+        var result = await application.OpenCopyAsync(work.Id, copy.Id);
 
-            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.FileUnavailable);
-            await Assert.That(result.Message).IsEqualTo("The EPUB file is no longer available.");
-            var readingRecord = await application.GetReadingRecordAsync(work.Id);
-            await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Read);
-            await Assert.That(readingRecord.PersonalNote).IsEqualTo("Already read.");
-        }
-        finally
-        {
-            DeleteWorkspace(workspace);
-        }
+        await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.FileUnavailable);
+        await Assert.That(result.Message).IsEqualTo("The EPUB file is no longer available.");
+        var readingRecord = await application.GetReadingRecordAsync(work.Id);
+        await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Read);
+        await Assert.That(readingRecord.PersonalNote).IsEqualTo("Already read.");
     }
 
     [Test]
     public async Task ReportsAReaderLaunchFailureAndPreservesTheCatalogue()
     {
-        var workspace = CreateWorkspace();
-        try
-        {
-            SyntheticEpub.Create(workspace, "failed.epub", "A Failed Launch Work", "A. Reader");
-            var launcher = new ControlledReaderLauncher(_ =>
-                ReaderLaunchResult.LaunchFailed("The associated reader could not be started."));
-            var application = CreateApplication(workspace, launcher);
-            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
-            var work = import.Items.Single().Work!;
-            await application.SaveReadingRecordAsync(work.Id, ReadingStatus.Reading, "Keep this note after failure.");
-            var copy = (await application.GetWorkDetailsAsync(work.Id))!.Copies.Single();
+        using var workspace = TestWorkspace.Create();
+        SyntheticEpub.Create(workspace.Path, "failed.epub", "A Failed Launch Work", "A. Reader");
+        var launcher = new ControlledReaderLauncher(_ =>
+            ReaderLaunchResult.LaunchFailed("The associated reader could not be started."));
+        var application = CreateApplication(workspace.Path, launcher);
+        var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace.Path));
+        var work = import.Items.Single().Work!;
+        await application.SaveReadingRecordAsync(work.Id, ReadingStatus.Reading, "Keep this note after failure.");
+        var copy = (await application.GetWorkDetailsAsync(work.Id))!.Copies.Single();
 
-            var result = await application.OpenCopyAsync(work.Id, copy.Id);
+        var result = await application.OpenCopyAsync(work.Id, copy.Id);
 
-            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.LaunchFailed);
-            await Assert.That(result.Message).IsEqualTo("The associated reader could not be started.");
-            var details = await application.GetWorkDetailsAsync(work.Id);
-            await Assert.That(details).IsNotNull();
-            await Assert.That(details!.Copies).Count().IsEqualTo(1);
-            var readingRecord = await application.GetReadingRecordAsync(work.Id);
-            await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Reading);
-            await Assert.That(readingRecord.PersonalNote).IsEqualTo("Keep this note after failure.");
-        }
-        finally
-        {
-            DeleteWorkspace(workspace);
-        }
+        await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.LaunchFailed);
+        await Assert.That(result.Message).IsEqualTo("The associated reader could not be started.");
+        var details = await application.GetWorkDetailsAsync(work.Id);
+        await Assert.That(details).IsNotNull();
+        await Assert.That(details!.Copies).Count().IsEqualTo(1);
+        var readingRecord = await application.GetReadingRecordAsync(work.Id);
+        await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Reading);
+        await Assert.That(readingRecord.PersonalNote).IsEqualTo("Keep this note after failure.");
     }
 
     [Test]
     public async Task ReportsWhenTheSelectedCopyIsNoLongerInTheCatalogue()
     {
-        var workspace = CreateWorkspace();
-        try
-        {
-            SyntheticEpub.Create(workspace, "catalogued.epub", "A Catalogued Work", "A. Reader");
-            var launcher = new ControlledReaderLauncher(_ =>
-                ReaderLaunchResult.LaunchRequested("Should not be requested."));
-            var application = CreateApplication(workspace, launcher);
-            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
-            var work = import.Items.Single().Work!;
+        using var workspace = TestWorkspace.Create();
+        SyntheticEpub.Create(workspace.Path, "catalogued.epub", "A Catalogued Work", "A. Reader");
+        var launcher = new ControlledReaderLauncher(_ =>
+            ReaderLaunchResult.LaunchRequested("Should not be requested."));
+        var application = CreateApplication(workspace.Path, launcher);
+        var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace.Path));
+        var work = import.Items.Single().Work!;
 
-            var result = await application.OpenCopyAsync(work.Id, Guid.NewGuid());
+        var result = await application.OpenCopyAsync(work.Id, Guid.NewGuid());
 
-            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.CopyNotFound);
-            await Assert.That(result.Message).IsEqualTo("The selected EPUB copy is no longer in the catalogue.");
-        }
-        finally
-        {
-            DeleteWorkspace(workspace);
-        }
+        await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.CopyNotFound);
+        await Assert.That(result.Message).IsEqualTo("The selected EPUB copy is no longer in the catalogue.");
     }
 
     [Test]
     public async Task ViewModelOpensACopyFromTheSelectedWorkAndReportsTheOutcome()
     {
-        var workspace = CreateWorkspace();
-        try
-        {
-            SyntheticEpub.Create(workspace, "visible.epub", "A Visible Work", "A. Reader");
-            var launcher = new ControlledReaderLauncher(file => file.DisplayName == "visible.epub"
-                ? ReaderLaunchResult.LaunchRequested("Requested the visible EPUB.")
-                : ReaderLaunchResult.LaunchFailed("The wrong EPUB was selected."));
-            var application = CreateApplication(workspace, launcher);
-            var viewModel = new MainViewModel(
-                new CatalogueSession(application, new PhysicalFileSource(workspace)));
+        using var workspace = TestWorkspace.Create();
+        SyntheticEpub.Create(workspace.Path, "visible.epub", "A Visible Work", "A. Reader");
+        var launcher = new ControlledReaderLauncher(file => file.DisplayName == "visible.epub"
+            ? ReaderLaunchResult.LaunchRequested("Requested the visible EPUB.")
+            : ReaderLaunchResult.LaunchFailed("The wrong EPUB was selected."));
+        var application = CreateApplication(workspace.Path, launcher);
+        var viewModel = new MainViewModel(
+            new CatalogueSession(application, new PhysicalFileSource(workspace.Path)));
 
-            await viewModel.SelectFolderAndImportAsync();
-            var copy = viewModel.WorkDetails!.Copies.Single();
+        await viewModel.SelectFolderAndImportAsync();
+        var copy = viewModel.WorkDetails!.Copies.Single();
 
-            await viewModel.OpenCopyAsync(copy);
+        await viewModel.OpenCopyAsync(copy);
 
-            await Assert.That(viewModel.StatusMessage).IsEqualTo("Requested the visible EPUB.");
-        }
-        finally
-        {
-            DeleteWorkspace(workspace);
-        }
+        await Assert.That(viewModel.StatusMessage).IsEqualTo("Requested the visible EPUB.");
     }
 
     private static CatalogueApplication CreateApplication(
@@ -166,18 +131,30 @@ public sealed class ReaderHandoffTests
             readerLauncher);
     }
 
-    private static string CreateWorkspace()
+    private sealed class TestWorkspace : IDisposable
     {
-        var path = Path.Combine(Path.GetTempPath(), "tome-raider-reader-handoff-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return path;
-    }
-
-    private static void DeleteWorkspace(string path)
-    {
-        if (Directory.Exists(path))
+        private TestWorkspace(string path)
         {
-            Directory.Delete(path, recursive: true);
+            Path = path;
+        }
+
+        public string Path { get; }
+
+        public static TestWorkspace Create()
+        {
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "tome-raider-reader-handoff-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            return new TestWorkspace(path);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
         }
     }
 
