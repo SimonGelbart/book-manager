@@ -1293,29 +1293,7 @@ public sealed class CapabilityProofTests
         }
         finally
         {
-            blockingSource?.ReleaseEnumeration();
-            if (importTask is not null)
-            {
-                try
-                {
-                    await importTask.WaitAsync(ConcurrencyTimeout);
-                }
-                catch
-                {
-                }
-            }
-
-            if (selectionTask is not null)
-            {
-                try
-                {
-                    await selectionTask.WaitAsync(ConcurrencyTimeout);
-                }
-                catch
-                {
-                }
-            }
-
+            await DrainBlockedOperationsAsync(blockingSource, importTask, selectionTask);
             DeleteWorkspace(workspace);
         }
     }
@@ -1373,29 +1351,7 @@ public sealed class CapabilityProofTests
         }
         finally
         {
-            blockingSource?.ReleaseEnumeration();
-            if (importTask is not null)
-            {
-                try
-                {
-                    await importTask.WaitAsync(ConcurrencyTimeout);
-                }
-                catch
-                {
-                }
-            }
-
-            if (selectionTask is not null)
-            {
-                try
-                {
-                    await selectionTask.WaitAsync(ConcurrencyTimeout);
-                }
-                catch
-                {
-                }
-            }
-
+            await DrainBlockedOperationsAsync(blockingSource, importTask, selectionTask);
             DeleteWorkspace(workspace);
         }
     }
@@ -1687,6 +1643,33 @@ public sealed class CapabilityProofTests
         if (Directory.Exists(path))
         {
             Directory.Delete(path, recursive: true);
+        }
+    }
+
+    private static async Task DrainBlockedOperationsAsync(
+        BlockingFileSource? source,
+        Task? importTask,
+        Task? selectionTask)
+    {
+        source?.ReleaseEnumeration();
+        await DrainAsync(importTask);
+        await DrainAsync(selectionTask);
+    }
+
+    private static async Task DrainAsync(Task? task)
+    {
+        if (task is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await task.WaitAsync(ConcurrencyTimeout);
+        }
+        catch (Exception)
+        {
+            // The test body owns the assertion; cleanup must not hide it.
         }
     }
 
