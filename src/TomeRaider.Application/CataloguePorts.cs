@@ -65,3 +65,10 @@ public interface IFileSource
         SourceFile file,
         CancellationToken cancellationToken = default);
 }
+
+public interface IReaderLauncher
+{
+    Task<ReaderLaunchResult> LaunchAsync(
+        SourceFile file,
+        CancellationToken cancellationToken = default);
+}

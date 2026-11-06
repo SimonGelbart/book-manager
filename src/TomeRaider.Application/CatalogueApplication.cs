@@ -4,14 +4,17 @@ public sealed class CatalogueApplication
 {
     private readonly IEpubMetadataExtractor metadataExtractor;
     private readonly IWorkCatalogue catalogue;
+    private readonly IReaderLauncher readerLauncher;
     private readonly SemaphoreSlim mutationGate = new(1, 1);
 
     public CatalogueApplication(
         IEpubMetadataExtractor metadataExtractor,
-        IWorkCatalogue catalogue)
+        IWorkCatalogue catalogue,
+        IReaderLauncher readerLauncher)
     {
         this.metadataExtractor = metadataExtractor;
         this.catalogue = catalogue;
+        this.readerLauncher = readerLauncher;
     }
 
     public Task<ImportResult> ImportSelectedFolderAsync(
@@ -106,6 +109,32 @@ public sealed class CatalogueApplication
         CancellationToken cancellationToken = default)
     {
         return catalogue.GetWorkDetailsAsync(workId, cancellationToken);
+    }
+
+    public async Task<ReaderLaunchResult> OpenCopyAsync(
+        Guid workId,
+        Guid copyId,
+        CancellationToken cancellationToken = default)
+    {
+        var details = await catalogue.GetWorkDetailsAsync(workId, cancellationToken);
+        var copy = details?.Copies.FirstOrDefault(candidate => candidate.Id == copyId);
+        if (copy is null)
+        {
+            return ReaderLaunchResult.CopyNotFound(
+                "The selected EPUB copy is no longer in the catalogue.");
+        }
+
+        try
+        {
+            return await readerLauncher.LaunchAsync(
+                new SourceFile(copy.Reference, copy.DisplayName),
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return ReaderLaunchResult.LaunchFailed(
+                $"The associated reader could not be started: {exception.Message}");
+        }
     }
 
     public Task ClearCatalogueAsync(CancellationToken cancellationToken = default)
