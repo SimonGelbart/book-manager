@@ -14,40 +14,30 @@ public sealed class CatalogueApplication
         this.catalogue = catalogue;
     }
 
-    public async Task<ImportResult> ImportSelectedFolderAsync(
+    public Task<ImportResult> ImportSelectedFolderAsync(
         IFileSource fileSource,
         CancellationToken cancellationToken = default)
     {
-        await mutationGate.WaitAsync(cancellationToken);
-        try
+        return RunMutationWithGateAsync(async () =>
         {
             var folder = await fileSource.SelectFolderAsync(cancellationToken);
             return folder is null
                 ? new ImportResult(null, [], WasCancelled: true)
                 : await ImportFolderAsync(fileSource, folder, cancellationToken);
-        }
-        finally
-        {
-            mutationGate.Release();
-        }
+        }, cancellationToken);
     }
 
-    public async Task<ImportResult> ImportRememberedFolderAsync(
+    public Task<ImportResult> ImportRememberedFolderAsync(
         IFileSource fileSource,
         CancellationToken cancellationToken = default)
     {
-        await mutationGate.WaitAsync(cancellationToken);
-        try
+        return RunMutationWithGateAsync(async () =>
         {
             var folder = await fileSource.RestoreFolderAsync(cancellationToken);
             return folder is null
                 ? new ImportResult(null, [], WasCancelled: true)
                 : await ImportFolderAsync(fileSource, folder, cancellationToken);
-        }
-        finally
-        {
-            mutationGate.Release();
-        }
+        }, cancellationToken);
     }
 
     public Task SaveReadingRecordAsync(
@@ -56,7 +46,9 @@ public sealed class CatalogueApplication
         string? personalNote,
         CancellationToken cancellationToken = default)
     {
-        return SaveReadingRecordWithGateAsync(workId, status, personalNote, cancellationToken);
+        return RunMutationWithGateAsync(
+            () => catalogue.SaveReadingRecordAsync(workId, status, personalNote, cancellationToken),
+            cancellationToken);
     }
 
     public Task SaveAsReadAsync(
@@ -64,7 +56,7 @@ public sealed class CatalogueApplication
         string? personalNote,
         CancellationToken cancellationToken = default)
     {
-        return catalogue.SaveReadingRecordAsync(
+        return SaveReadingRecordAsync(
             workId,
             TomeRaider.Domain.ReadingStatus.Read,
             personalNote,
@@ -88,7 +80,9 @@ public sealed class CatalogueApplication
         Guid reviewId,
         CancellationToken cancellationToken = default)
     {
-        return ResolveImportReviewAsNewWorkWithGateAsync(reviewId, cancellationToken);
+        return RunMutationWithGateAsync(
+            () => catalogue.ResolveImportReviewAsNewWorkAsync(reviewId, cancellationToken),
+            cancellationToken);
     }
 
     public Task<ImportedWork> ResolveImportReviewToExistingWorkAsync(
@@ -96,7 +90,9 @@ public sealed class CatalogueApplication
         Guid workId,
         CancellationToken cancellationToken = default)
     {
-        return ResolveImportReviewToExistingWorkWithGateAsync(reviewId, workId, cancellationToken);
+        return RunMutationWithGateAsync(
+            () => catalogue.ResolveImportReviewToExistingWorkAsync(reviewId, workId, cancellationToken),
+            cancellationToken);
     }
 
     public Task<IReadOnlyList<CatalogueWorkSummary>> GetWorksAsync(
@@ -114,19 +110,19 @@ public sealed class CatalogueApplication
 
     public Task ClearCatalogueAsync(CancellationToken cancellationToken = default)
     {
-        return ClearCatalogueWithGateAsync(cancellationToken);
+        return RunMutationWithGateAsync(
+            () => catalogue.ClearAsync(cancellationToken),
+            cancellationToken);
     }
 
-    private async Task SaveReadingRecordWithGateAsync(
-        Guid workId,
-        TomeRaider.Domain.ReadingStatus status,
-        string? personalNote,
+    private async Task RunMutationWithGateAsync(
+        Func<Task> mutation,
         CancellationToken cancellationToken)
     {
         await mutationGate.WaitAsync(cancellationToken);
         try
         {
-            await catalogue.SaveReadingRecordAsync(workId, status, personalNote, cancellationToken);
+            await mutation();
         }
         finally
         {
@@ -134,43 +130,14 @@ public sealed class CatalogueApplication
         }
     }
 
-    private async Task ClearCatalogueWithGateAsync(CancellationToken cancellationToken)
-    {
-        await mutationGate.WaitAsync(cancellationToken);
-        try
-        {
-            await catalogue.ClearAsync(cancellationToken);
-        }
-        finally
-        {
-            mutationGate.Release();
-        }
-    }
-
-    private async Task<ImportedWork> ResolveImportReviewAsNewWorkWithGateAsync(
-        Guid reviewId,
+    private async Task<TResult> RunMutationWithGateAsync<TResult>(
+        Func<Task<TResult>> mutation,
         CancellationToken cancellationToken)
     {
         await mutationGate.WaitAsync(cancellationToken);
         try
         {
-            return await catalogue.ResolveImportReviewAsNewWorkAsync(reviewId, cancellationToken);
-        }
-        finally
-        {
-            mutationGate.Release();
-        }
-    }
-
-    private async Task<ImportedWork> ResolveImportReviewToExistingWorkWithGateAsync(
-        Guid reviewId,
-        Guid workId,
-        CancellationToken cancellationToken)
-    {
-        await mutationGate.WaitAsync(cancellationToken);
-        try
-        {
-            return await catalogue.ResolveImportReviewToExistingWorkAsync(reviewId, workId, cancellationToken);
+            return await mutation();
         }
         finally
         {

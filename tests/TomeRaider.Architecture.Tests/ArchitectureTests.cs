@@ -14,9 +14,24 @@ public sealed class ArchitectureTests
     public async Task ProductionProjectReferencesFollowTheApprovedDirection()
     {
         var repositoryRoot = FindRepositoryRoot();
+        var selectedModules = ArchitectureRules.ReadProductionProjectNames(repositoryRoot);
         var dependencies = ArchitectureRules.ReadProjectReferences(repositoryRoot);
+        var selectionViolations = ArchitectureRules.FindModuleSelectionViolations(
+            selectedModules,
+            new HashSet<string>(
+            [
+                "TomeRaider.Android",
+                "TomeRaider.Application",
+                "TomeRaider.Desktop",
+                "TomeRaider.Domain",
+                "TomeRaider.Infrastructure",
+                "TomeRaider.Platform.Storage",
+                "TomeRaider.Presentation"
+            ],
+            StringComparer.Ordinal));
         var violations = ArchitectureRules.FindViolations(dependencies);
 
+        await Assert.That(selectionViolations).Count().IsEqualTo(0);
         await Assert.That(violations).Count().IsEqualTo(0);
         ArchitectureRules.AssertAcyclic(dependencies);
     }
@@ -91,6 +106,24 @@ public sealed class ArchitectureTests
     }
 
     [Test]
+    public async Task ModuleSelectionChecksRejectEmptySelections()
+    {
+        var rejected = false;
+        try
+        {
+            ArchitectureRules.FindModuleSelectionViolations(
+                [],
+                new HashSet<string>(["TomeRaider.Domain"], StringComparer.Ordinal));
+        }
+        catch (InvalidOperationException)
+        {
+            rejected = true;
+        }
+
+        await Assert.That(rejected).IsTrue();
+    }
+
+    [Test]
     public async Task InnerAssembliesDoNotReferenceOuterImplementations()
     {
         var domainReferences = typeof(Work).Assembly.GetReferencedAssemblies().Select(assembly => assembly.Name);
@@ -117,6 +150,40 @@ public sealed class ArchitectureTests
         var violations = ArchitectureRules.FindEmittedReferenceViolations(assemblies);
 
         await Assert.That(violations).Count().IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task EmittedChecksRejectASelectionThatDoesNotNameTheSelectedAssembly()
+    {
+        var violations = ArchitectureRules.FindEmittedReferenceViolations(
+        [
+            ("TomeRaider.Domain", typeof(CatalogueApplication).Assembly),
+            ("TomeRaider.Application", typeof(CatalogueApplication).Assembly),
+            ("TomeRaider.Infrastructure", typeof(EpubMetadataExtractor).Assembly),
+            ("TomeRaider.Platform.Storage", typeof(AvaloniaStorageFileSource).Assembly),
+            ("TomeRaider.Presentation", typeof(MainViewModel).Assembly),
+            ("TomeRaider.Desktop", System.Reflection.Assembly.Load("TomeRaider.Desktop"))
+        ]);
+
+        await Assert.That(violations).Contains(
+            "TomeRaider.Domain -> selected assembly is TomeRaider.Application");
+    }
+
+    [Test]
+    public async Task EmittedChecksReportUnknownSelectionsWithoutThrowing()
+    {
+        var violations = ArchitectureRules.FindEmittedReferenceViolations(
+        [
+            ("TomeRaider.Domain", typeof(Work).Assembly),
+            ("TomeRaider.Application", typeof(CatalogueApplication).Assembly),
+            ("TomeRaider.Infrastructure", typeof(EpubMetadataExtractor).Assembly),
+            ("TomeRaider.Platform.Storage", typeof(AvaloniaStorageFileSource).Assembly),
+            ("TomeRaider.Presentation", typeof(MainViewModel).Assembly),
+            ("TomeRaider.Desktop", System.Reflection.Assembly.Load("TomeRaider.Desktop")),
+            ("TomeRaider.Unknown", typeof(CatalogueApplication).Assembly)
+        ]);
+
+        await Assert.That(violations).Contains("Unknown production module: TomeRaider.Unknown");
     }
 
     private static string FindRepositoryRoot()

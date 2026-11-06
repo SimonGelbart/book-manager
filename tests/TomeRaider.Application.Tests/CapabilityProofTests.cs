@@ -1,4 +1,8 @@
 using Microsoft.Data.Sqlite;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
+using System.Collections;
 using TomeRaider.Application;
 using TomeRaider.Domain;
 using TomeRaider.Infrastructure;
@@ -10,6 +14,8 @@ namespace TomeRaider.Application.Tests;
 
 public sealed class CapabilityProofTests
 {
+    private static readonly TimeSpan ConcurrencyTimeout = TimeSpan.FromSeconds(5);
+
     [Test]
     public async Task ImportsGenericAndAo3EpubsAndRecoversReadingRecord()
     {
@@ -193,28 +199,112 @@ public sealed class CapabilityProofTests
     public async Task ClearWaitsForAnActiveImportBeforeRemovingTheCatalogue()
     {
         var workspace = CreateWorkspace();
+        BlockingFileSource? source = null;
         try
         {
             var epubPath = SyntheticEpub.Create(workspace, "blocked.epub", "A Blocked Import", "A. Reader");
-            var source = new BlockingFileSource(
+            source = new BlockingFileSource(
                 new SourceFolder(workspace, "Blocking folder"),
                 new SourceFile(epubPath, "blocked.epub"));
             var application = CreateApplication(Path.Combine(workspace, "catalogue.sqlite"));
 
             var importTask = application.ImportSelectedFolderAsync(source);
-            await source.EnumerationStarted;
+            await source.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
             var clearTask = application.ClearCatalogueAsync();
             var clearCompletedBeforeImportReleased = clearTask.IsCompleted;
 
             source.ReleaseEnumeration();
-            await importTask;
-            await clearTask;
+            await importTask.WaitAsync(ConcurrencyTimeout);
+            await clearTask.WaitAsync(ConcurrencyTimeout);
 
             await Assert.That(clearCompletedBeforeImportReleased).IsFalse();
             await Assert.That(await application.GetWorksAsync()).Count().IsEqualTo(0);
         }
         finally
         {
+            source?.ReleaseEnumeration();
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task SaveAsReadWaitsForAnActiveImportBeforeWritingTheRecord()
+    {
+        var workspace = CreateWorkspace();
+        BlockingFileSource? blockingSource = null;
+        try
+        {
+            var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
+            var secondPath = SyntheticEpub.Create(workspace, "second.epub", "Second Work", "B. Reader");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    new SourceFolder(workspace, "First folder"),
+                    [new SourceFile(firstPath, "first.epub")]));
+            var firstWorkId = firstImport.Items.Single().Work!.Id;
+            blockingSource = new BlockingFileSource(
+                new SourceFolder(workspace, "Second folder"),
+                new SourceFile(secondPath, "second.epub"));
+
+            var importTask = application.ImportSelectedFolderAsync(blockingSource);
+            await blockingSource.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
+            var saveTask = application.SaveAsReadAsync(firstWorkId, "Queued through the Application gate.");
+            await Task.Yield();
+
+            var recordBeforeImportReleased = await application.GetReadingRecordAsync(firstWorkId);
+            blockingSource?.ReleaseEnumeration();
+            await importTask.WaitAsync(ConcurrencyTimeout);
+            await saveTask.WaitAsync(ConcurrencyTimeout);
+
+            var record = await application.GetReadingRecordAsync(firstWorkId);
+            await Assert.That(recordBeforeImportReleased!.Status).IsEqualTo(ReadingStatus.Unknown);
+            await Assert.That(recordBeforeImportReleased.PersonalNote).IsNull();
+            await Assert.That(record!.Status).IsEqualTo(ReadingStatus.Read);
+            await Assert.That(record.PersonalNote).IsEqualTo("Queued through the Application gate.");
+        }
+        finally
+        {
+            blockingSource?.ReleaseEnumeration();
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task CancellationReleasesTheApplicationMutationGate()
+    {
+        var workspace = CreateWorkspace();
+        BlockingFileSource? source = null;
+        try
+        {
+            var epubPath = SyntheticEpub.Create(workspace, "cancelled.epub", "A Cancelled Import", "A. Reader");
+            source = new BlockingFileSource(
+                new SourceFolder(workspace, "Blocking folder"),
+                new SourceFile(epubPath, "cancelled.epub"));
+            var application = CreateApplication(Path.Combine(workspace, "catalogue.sqlite"));
+            using var cancellation = new CancellationTokenSource();
+
+            var importTask = application.ImportSelectedFolderAsync(source, cancellation.Token);
+            await source.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
+            cancellation.Cancel();
+
+            var wasCancelled = false;
+            try
+            {
+                await importTask.WaitAsync(ConcurrencyTimeout);
+            }
+            catch (OperationCanceledException)
+            {
+                wasCancelled = true;
+            }
+
+            await application.ClearCatalogueAsync().WaitAsync(ConcurrencyTimeout);
+            await Assert.That(wasCancelled).IsTrue();
+            await Assert.That(await application.GetWorksAsync()).Count().IsEqualTo(0);
+        }
+        finally
+        {
+            source?.ReleaseEnumeration();
             DeleteWorkspace(workspace);
         }
     }
@@ -609,6 +699,8 @@ public sealed class CapabilityProofTests
             await Assert.That(reviewItem.NeedsReview).IsTrue();
             await Assert.That(reviewItem.Review!.File.Reference).IsEqualTo(Path.Combine(workspace, "conflict.epub"));
             await Assert.That(reviewItem.Review.Metadata.Title).IsEqualTo("A Different Work");
+            await Assert.That(reviewItem.Review.Reason).IsEqualTo(
+                "The source identifier matches an existing work, but title or author metadata conflicts.");
             await Assert.That(reviews[0].Metadata.Description).IsEqualTo("Conflicting summary.");
             await Assert.That(reviews).Count().IsEqualTo(1);
             await Assert.That(reviews[0].Candidates).Count().IsEqualTo(1);
@@ -1120,6 +1212,7 @@ public sealed class CapabilityProofTests
     public async Task QueuedSaveUsesTheWorkAndNoteSelectedBeforeAnImport()
     {
         var workspace = CreateWorkspace();
+        BlockingFileSource? blockingSource = null;
         try
         {
             var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
@@ -1131,7 +1224,7 @@ public sealed class CapabilityProofTests
                     new SourceFolder(workspace, "First folder"),
                     [new SourceFile(firstPath, "first.epub")]));
             var firstWorkId = firstImport.Items.Single().Work!.Id;
-            var blockingSource = new BlockingFileSource(
+            blockingSource = new BlockingFileSource(
                 new SourceFolder(workspace, "Second folder"),
                 new SourceFile(secondPath, "second.epub"));
             var viewModel = new MainViewModel(new CatalogueSession(application, blockingSource));
@@ -1141,13 +1234,13 @@ public sealed class CapabilityProofTests
             viewModel.PersonalNote = "Edited before queued save.";
 
             var importTask = viewModel.SelectFolderAndImportAsync();
-            await blockingSource.EnumerationStarted;
+            await blockingSource.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
             var saveTask = viewModel.SaveReadingAsync();
             var saveCompletedBeforeImportReleased = saveTask.IsCompleted;
 
             blockingSource.ReleaseEnumeration();
-            await importTask;
-            await saveTask;
+            await importTask.WaitAsync(ConcurrencyTimeout);
+            await saveTask.WaitAsync(ConcurrencyTimeout);
 
             var firstRecord = await application.GetReadingRecordAsync(firstWorkId);
             var secondWorkId = viewModel.Works.Single(work => work.Title == "Second Work").Id;
@@ -1160,6 +1253,225 @@ public sealed class CapabilityProofTests
         }
         finally
         {
+            blockingSource?.ReleaseEnumeration();
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task QueuedWorkSelectionWaitsForAnActiveImport()
+    {
+        var workspace = CreateWorkspace();
+        BlockingFileSource? blockingSource = null;
+        Task? importTask = null;
+        Task? selectionTask = null;
+        try
+        {
+            var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
+            var secondPath = SyntheticEpub.Create(workspace, "second.epub", "Second Work", "B. Reader");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var firstImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    new SourceFolder(workspace, "First folder"),
+                    [new SourceFile(firstPath, "first.epub")]));
+            var firstWorkId = firstImport.Items.Single().Work!.Id;
+            blockingSource = new BlockingFileSource(
+                new SourceFolder(workspace, "Second folder"),
+                new SourceFile(secondPath, "second.epub"));
+            var viewModel = new MainViewModel(new CatalogueSession(application, blockingSource));
+
+            await viewModel.InitializeAsync();
+            importTask = viewModel.SelectFolderAndImportAsync();
+            await blockingSource.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
+            selectionTask = viewModel.SelectWorkAsync(firstWorkId);
+            await Task.Yield();
+
+            var selectionCompletedBeforeImportReleased = selectionTask.IsCompleted;
+            blockingSource.ReleaseEnumeration();
+            await importTask.WaitAsync(ConcurrencyTimeout);
+            await selectionTask.WaitAsync(ConcurrencyTimeout);
+
+            await Assert.That(selectionCompletedBeforeImportReleased).IsFalse();
+            await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
+        }
+        finally
+        {
+            await DrainBlockedOperationsAsync(blockingSource, importTask, selectionTask);
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task SaveIsRejectedWhileAQueuedSelectionLoadsItsDetails()
+    {
+        var workspace = CreateWorkspace();
+        BlockingFileSource? blockingSource = null;
+        Task? importTask = null;
+        Task? selectionTask = null;
+        try
+        {
+            var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
+            var secondPath = SyntheticEpub.Create(workspace, "second.epub", "Second Work", "B. Reader");
+            var thirdPath = SyntheticEpub.Create(workspace, "third.epub", "Third Work", "C. Reader");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var initialImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    new SourceFolder(workspace, "Initial folder"),
+                    [new SourceFile(firstPath, "first.epub"), new SourceFile(secondPath, "second.epub")]));
+            var firstWorkId = initialImport.Items.Single(item => item.Work?.Title == "First Work").Work!.Id;
+            var secondWorkId = initialImport.Items.Single(item => item.Work?.Title == "Second Work").Work!.Id;
+            await application.SaveReadingRecordAsync(firstWorkId, ReadingStatus.Read, "First note.");
+            await application.SaveReadingRecordAsync(secondWorkId, ReadingStatus.Read, "Second note.");
+
+            blockingSource = new BlockingFileSource(
+                new SourceFolder(workspace, "Third folder"),
+                new SourceFile(thirdPath, "third.epub"));
+            var viewModel = new MainViewModel(new CatalogueSession(application, blockingSource));
+            await viewModel.InitializeAsync();
+            var secondWork = viewModel.Works.Single(work => work.Id == secondWorkId);
+            await viewModel.SelectWorkAsync(firstWorkId);
+            viewModel.PersonalNote = "First note edited.";
+
+            importTask = viewModel.SelectFolderAndImportAsync();
+            await blockingSource.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
+            viewModel.SelectedWork = secondWork;
+            selectionTask = viewModel.SelectWorkAsync(secondWorkId);
+            var saveTask = viewModel.SaveReadingAsync();
+
+            await Assert.That(saveTask.IsCompleted).IsTrue();
+            await Assert.That(viewModel.StatusMessage)
+                .IsEqualTo("Wait for the selected work to finish loading before saving its reading record.");
+
+            blockingSource.ReleaseEnumeration();
+            await importTask.WaitAsync(ConcurrencyTimeout);
+            await selectionTask.WaitAsync(ConcurrencyTimeout);
+
+            var firstRecord = await application.GetReadingRecordAsync(firstWorkId);
+            var secondRecord = await application.GetReadingRecordAsync(secondWorkId);
+            await Assert.That(firstRecord!.PersonalNote).IsEqualTo("First note.");
+            await Assert.That(secondRecord!.PersonalNote).IsEqualTo("Second note.");
+        }
+        finally
+        {
+            await DrainBlockedOperationsAsync(blockingSource, importTask, selectionTask);
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test, NotInParallel("Avalonia")]
+    public async Task MainViewDoesNotReplayProgrammaticSelectionChanges()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
+            var secondPath = SyntheticEpub.Create(workspace, "second.epub", "Second Work", "B. Reader");
+            var application = CreateApplication(Path.Combine(workspace, "catalogue.sqlite"));
+            var source = new FixedFolderFileSource(
+                new SourceFolder(workspace, "Synthetic folder"),
+                [new SourceFile(firstPath, "first.epub"), new SourceFile(secondPath, "second.epub")]);
+            var viewModel = new MainViewModel(new CatalogueSession(application, source));
+
+            await viewModel.SelectFolderAndImportAsync();
+            var firstWork = viewModel.Works.Single(work => work.Title == "First Work");
+            var secondWork = viewModel.Works.Single(work => work.Title == "Second Work");
+            await viewModel.SelectWorkAsync(firstWork.Id);
+            await RunOnAvaloniaDispatcherAsync(async () =>
+            {
+                var view = new MainView();
+                view.DataContext = viewModel;
+                var worksList = view.FindControl<ListBox>("WorksList");
+
+                await Assert.That(worksList).IsNotNull();
+                viewModel.SelectedWork = secondWork;
+
+                await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(secondWork.Id);
+                await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+                await Assert.That(((WorkSummaryViewModel)worksList!.SelectedItem!).Id)
+                    .IsEqualTo(secondWork.Id);
+            });
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test, NotInParallel("Avalonia")]
+    public async Task MainViewPreservesTheLatestUserSelectionDuringAnActiveImport()
+    {
+        var workspace = CreateWorkspace();
+        BlockingFileSource? blockingSource = null;
+        Task? importTask = null;
+        try
+        {
+            var firstPath = SyntheticEpub.Create(workspace, "first.epub", "First Work", "A. Reader");
+            var secondPath = SyntheticEpub.Create(workspace, "second.epub", "Second Work", "B. Reader");
+            var thirdPath = SyntheticEpub.Create(workspace, "third.epub", "Third Work", "C. Reader");
+            var databasePath = Path.Combine(workspace, "catalogue.sqlite");
+            var application = CreateApplication(databasePath);
+            var initialImport = await application.ImportSelectedFolderAsync(
+                new FixedFolderFileSource(
+                    new SourceFolder(workspace, "Initial folder"),
+                    [new SourceFile(firstPath, "first.epub"), new SourceFile(secondPath, "second.epub")]));
+            var firstWorkId = initialImport.Items.Single(item => item.Work?.Title == "First Work").Work!.Id;
+            var secondWorkId = initialImport.Items.Single(item => item.Work?.Title == "Second Work").Work!.Id;
+
+            blockingSource = new BlockingFileSource(
+                new SourceFolder(workspace, "Third folder"),
+                new SourceFile(thirdPath, "third.epub"));
+            var viewModel = new MainViewModel(new CatalogueSession(application, blockingSource));
+            await viewModel.InitializeAsync();
+            var firstWork = viewModel.Works.Single(work => work.Id == firstWorkId);
+            var secondWork = viewModel.Works.Single(work => work.Id == secondWorkId);
+            await RunOnAvaloniaDispatcherAsync(async () =>
+            {
+                var view = new MainView();
+                view.DataContext = viewModel;
+                var worksList = view.FindControl<ListBox>("WorksList");
+                var finalDetailsLoaded = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                viewModel.PropertyChanged += (_, args) =>
+                {
+                    if (args.PropertyName == nameof(MainViewModel.WorkDetails)
+                        && viewModel.WorkDetails?.Title == "First Work")
+                    {
+                        finalDetailsLoaded.TrySetResult(true);
+                    }
+                };
+
+                await Assert.That(worksList).IsNotNull();
+                importTask = viewModel.SelectFolderAndImportAsync();
+                await blockingSource.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
+                worksList!.SetCurrentValue(ListBox.SelectedItemProperty, secondWork);
+                worksList.RaiseEvent(new SelectionChangedEventArgs(
+                    ListBox.SelectionChangedEvent,
+                    new ArrayList { secondWork },
+                    new ArrayList()));
+                worksList.SetCurrentValue(ListBox.SelectedItemProperty, firstWork);
+                worksList.RaiseEvent(new SelectionChangedEventArgs(
+                    ListBox.SelectionChangedEvent,
+                    new ArrayList { firstWork },
+                    new ArrayList { secondWork }));
+
+                await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
+                await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+
+                blockingSource.ReleaseEnumeration();
+                await importTask.WaitAsync(ConcurrencyTimeout);
+                await finalDetailsLoaded.Task.WaitAsync(ConcurrencyTimeout);
+
+                await Assert.That(((WorkSummaryViewModel)worksList.SelectedItem!).Id)
+                    .IsEqualTo(firstWorkId);
+                await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
+                await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+            });
+        }
+        finally
+        {
+            await DrainBlockedOperationsAsync(blockingSource, importTask, null);
             DeleteWorkspace(workspace);
         }
     }
@@ -1416,6 +1728,80 @@ public sealed class CapabilityProofTests
         if (Directory.Exists(path))
         {
             Directory.Delete(path, recursive: true);
+        }
+    }
+
+    private static async Task RunOnAvaloniaDispatcherAsync(Func<Task> operation)
+    {
+        var completion = new TaskCompletionSource<object?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var threadExited = new TaskCompletionSource<object?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var dispatcher = Dispatcher.CurrentDispatcher;
+                AvaloniaSynchronizationContext.InstallIfNeeded();
+                dispatcher.Post(async () =>
+                {
+                    try
+                    {
+                        await operation();
+                        completion.TrySetResult(null);
+                    }
+                    catch (Exception exception)
+                    {
+                        completion.TrySetException(exception);
+                    }
+                    finally
+                    {
+                        dispatcher.InvokeShutdown();
+                    }
+                }, DispatcherPriority.Default);
+                dispatcher.MainLoop(CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+            finally
+            {
+                threadExited.TrySetResult(null);
+            }
+        })
+        {
+            IsBackground = true
+        };
+        thread.Start();
+        await completion.Task.WaitAsync(ConcurrencyTimeout);
+        await threadExited.Task.WaitAsync(ConcurrencyTimeout);
+    }
+
+    private static async Task DrainBlockedOperationsAsync(
+        BlockingFileSource? source,
+        Task? importTask,
+        Task? selectionTask)
+    {
+        source?.ReleaseEnumeration();
+        await DrainAsync(importTask);
+        await DrainAsync(selectionTask);
+    }
+
+    private static async Task DrainAsync(Task? task)
+    {
+        if (task is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await task.WaitAsync(ConcurrencyTimeout);
+        }
+        catch (Exception)
+        {
+            // The test body owns the assertion; cleanup must not hide it.
         }
     }
 

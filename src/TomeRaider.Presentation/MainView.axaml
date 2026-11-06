@@ -92,7 +92,7 @@
         <StackPanel Grid.Column="0" Spacing="8">
           <TextBlock FontWeight="Bold" Text="Collection (all saved works)" />
           <ListBox ItemsSource="{Binding Works}"
-                   SelectedItem="{Binding SelectedWork}"
+                   x:Name="WorksList"
                    SelectionChanged="SelectWork"
                    MinHeight="180">
             <ListBox.ItemTemplate>

@@ -1,0 +1,23 @@
+{
+  "stryker-config": {
+    "project": "TomeRaider.Application.csproj",
+    "test-projects": [
+      "TomeRaider.Application.Tests.csproj"
+    ],
+    "configuration": "Release",
+    "test-runner": "mtp",
+    "mutation-level": "Basic",
+    "coverage-analysis": "perTest",
+    "mutate": [
+      "**/WorkAssociationPolicy.cs",
+      "**/CatalogueApplication.cs"
+    ],
+    "concurrency": 2,
+    "reporters": [
+      "Progress",
+      "ClearText",
+      "Json"
+    ],
+    "break-on-initial-test-failure": true
+  }
+}

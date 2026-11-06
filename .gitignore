@@ -1,5 +1,8 @@
 **/bin/
 **/obj/
+artifacts/
+**/StrykerOutput/
+**/TestResults/
 .idea/
 .vs/
 *.user
