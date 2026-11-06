@@ -5,6 +5,23 @@ namespace TomeRaider.Platform.Storage;
 
 public sealed class DesktopReaderLauncher : IReaderLauncher
 {
+    private static readonly TimeSpan ObservationWindow = TimeSpan.FromSeconds(2);
+    private readonly IReaderProcessLauncher processLauncher;
+    private readonly TimeProvider timeProvider;
+
+    public DesktopReaderLauncher()
+        : this(new SystemReaderProcessLauncher(), TimeProvider.System)
+    {
+    }
+
+    internal DesktopReaderLauncher(
+        IReaderProcessLauncher processLauncher,
+        TimeProvider timeProvider)
+    {
+        this.processLauncher = processLauncher;
+        this.timeProvider = timeProvider;
+    }
+
     public async Task<ReaderLaunchResult> LaunchAsync(
         SourceFile file,
         CancellationToken cancellationToken = default)
@@ -19,27 +36,23 @@ public sealed class DesktopReaderLauncher : IReaderLauncher
 
         try
         {
-            var process = Process.Start(new ProcessStartInfo
-            {
-                FileName = localPath,
-                UseShellExecute = true
-            });
+            var process = processLauncher.Start(localPath);
 
             if (process is null)
             {
-                return ReaderLaunchResult.LaunchFailed(
-                    $"The associated reader did not accept '{file.DisplayName}'.");
+                return ReaderLaunchResult.LaunchRequested(
+                    $"Requested '{file.DisplayName}' in the associated reader.");
             }
 
-            var exited = await WaitForExitWithinAsync(
-                process,
-                TimeSpan.FromSeconds(2),
-                cancellationToken);
-            return exited && process.ExitCode != 0
-                ? ReaderLaunchResult.LaunchFailed(
-                    $"The associated reader failed to open '{file.DisplayName}' (exit code {process.ExitCode}).")
-                : ReaderLaunchResult.LaunchRequested(
-                    $"Requested '{file.DisplayName}' in the associated reader.");
+            using (process)
+            {
+                var exited = await WaitForExitWithinAsync(process, cancellationToken);
+                return exited && process.ExitCode != 0
+                    ? ReaderLaunchResult.LaunchFailed(
+                        $"The associated reader failed to open '{file.DisplayName}' (exit code {process.ExitCode}).")
+                    : ReaderLaunchResult.LaunchRequested(
+                        $"Requested '{file.DisplayName}' in the associated reader.");
+            }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -48,16 +61,43 @@ public sealed class DesktopReaderLauncher : IReaderLauncher
         }
     }
 
-    private static async Task<bool> WaitForExitWithinAsync(
-        Process process,
-        TimeSpan timeout,
+    private async Task<bool> WaitForExitWithinAsync(
+        IReaderProcess process,
         CancellationToken cancellationToken)
     {
-        var waitForExit = process.WaitForExitAsync(cancellationToken);
-        var timeoutTask = Task.Delay(timeout, cancellationToken);
-        var completed = await Task.WhenAny(waitForExit, timeoutTask);
-        cancellationToken.ThrowIfCancellationRequested();
-        return completed == waitForExit;
+        using var observationCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        try
+        {
+            var waitForExit = process.WaitForExitAsync(observationCancellation.Token);
+            var timeoutTask = Task.Delay(ObservationWindow, timeProvider, observationCancellation.Token);
+            var completed = await Task.WhenAny(waitForExit, timeoutTask);
+            if (completed == waitForExit)
+            {
+                await waitForExit;
+                return true;
+            }
+
+            observationCancellation.Cancel();
+            await ObserveCancelledWaitAsync(waitForExit);
+            cancellationToken.ThrowIfCancellationRequested();
+            return false;
+        }
+        finally
+        {
+            observationCancellation.Cancel();
+        }
+    }
+
+    private static async Task ObserveCancelledWaitAsync(Task waitForExit)
+    {
+        try
+        {
+            await waitForExit;
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private static string? ResolveLocalPath(string reference)
@@ -68,6 +108,45 @@ public sealed class DesktopReaderLauncher : IReaderLauncher
         }
 
         return reference;
+    }
+}
+
+internal interface IReaderProcessLauncher
+{
+    IReaderProcess? Start(string localPath);
+}
+
+internal interface IReaderProcess : IDisposable
+{
+    int ExitCode { get; }
+
+    Task WaitForExitAsync(CancellationToken cancellationToken);
+}
+
+internal sealed class SystemReaderProcessLauncher : IReaderProcessLauncher
+{
+    public IReaderProcess? Start(string localPath)
+    {
+        var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = localPath,
+            UseShellExecute = true
+        });
+
+        return process is null ? null : new SystemReaderProcess(process);
+    }
+}
+
+internal sealed class SystemReaderProcess(Process process) : IReaderProcess
+{
+    public int ExitCode => process.ExitCode;
+
+    public Task WaitForExitAsync(CancellationToken cancellationToken) =>
+        process.WaitForExitAsync(cancellationToken);
+
+    public void Dispose()
+    {
+        process.Dispose();
     }
 }
 
