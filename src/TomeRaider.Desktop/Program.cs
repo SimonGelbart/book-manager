@@ -30,7 +30,8 @@ internal static class Program
         return new CatalogueSession(
             new CatalogueApplication(
                 new EpubMetadataExtractor(),
-                new SqliteCatalogue(Path.Combine(dataDirectory, "catalogue.sqlite"))),
+                new SqliteCatalogue(Path.Combine(dataDirectory, "catalogue.sqlite")),
+                new DesktopReaderLauncher()),
             new AvaloniaStorageFileSource(
                 storageProvider,
                 new JsonFolderBookmarkStore(Path.Combine(dataDirectory, "folder-bookmark.json"))));
