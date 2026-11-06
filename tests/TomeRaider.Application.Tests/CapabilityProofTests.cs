@@ -2,7 +2,6 @@ using Microsoft.Data.Sqlite;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using System.Collections;
-using System.Reflection;
 using TomeRaider.Application;
 using TomeRaider.Domain;
 using TomeRaider.Infrastructure;
@@ -1440,28 +1439,15 @@ public sealed class CapabilityProofTests
             importTask = viewModel.SelectFolderAndImportAsync();
             await blockingSource.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
             worksList!.SetCurrentValue(ListBox.SelectedItemProperty, secondWork);
-            var selectWork = typeof(MainView).GetMethod(
-                "SelectWork",
-                BindingFlags.Instance | BindingFlags.NonPublic)!;
-            selectWork.Invoke(
-                view,
-                [
-                    worksList,
-                    new SelectionChangedEventArgs(
-                        ListBox.SelectionChangedEvent,
-                        new ArrayList { secondWork },
-                        new ArrayList())
-                ]);
+            worksList.RaiseEvent(new SelectionChangedEventArgs(
+                ListBox.SelectionChangedEvent,
+                new ArrayList { secondWork },
+                new ArrayList()));
             worksList.SetCurrentValue(ListBox.SelectedItemProperty, firstWork);
-            selectWork.Invoke(
-                view,
-                [
-                    worksList,
-                    new SelectionChangedEventArgs(
-                        ListBox.SelectionChangedEvent,
-                        new ArrayList { firstWork },
-                        new ArrayList { secondWork })
-                ]);
+            worksList.RaiseEvent(new SelectionChangedEventArgs(
+                ListBox.SelectionChangedEvent,
+                new ArrayList { firstWork },
+                new ArrayList { secondWork }));
 
             await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
             await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
