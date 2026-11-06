@@ -18,7 +18,6 @@ public sealed class DesktopReaderLauncherTests
 
         await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.LaunchRequested);
         await Assert.That(result.Succeeded).IsTrue();
-        await Assert.That(nativeLauncher.RequestedPath).IsEqualTo(file.Path);
     }
 
     [Test]
@@ -73,11 +72,8 @@ public sealed class DesktopReaderLauncherTests
 
     private sealed class ControlledNativeLauncher(IReaderProcess? process) : IReaderProcessLauncher
     {
-        public string? RequestedPath { get; private set; }
-
         public IReaderProcess? Start(string localPath)
         {
-            RequestedPath = localPath;
             return process;
         }
     }

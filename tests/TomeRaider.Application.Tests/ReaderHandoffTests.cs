@@ -78,7 +78,11 @@ public sealed class ReaderHandoffTests
         await Assert.That(result.Message).IsEqualTo("The associated reader could not be started.");
         var details = await application.GetWorkDetailsAsync(work.Id);
         await Assert.That(details).IsNotNull();
+        await Assert.That(details!.Summary.Title).IsEqualTo("A Failed Launch Work");
         await Assert.That(details!.Copies).Count().IsEqualTo(1);
+        await Assert.That(details!.Copies.Single().DisplayName).IsEqualTo("failed.epub");
+        await Assert.That(details!.Copies.Single().Reference)
+            .IsEqualTo(System.IO.Path.Combine(workspace.Path, "failed.epub"));
         var readingRecord = await application.GetReadingRecordAsync(work.Id);
         await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Reading);
         await Assert.That(readingRecord.PersonalNote).IsEqualTo("Keep this note after failure.");
