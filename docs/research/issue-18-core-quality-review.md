@@ -181,9 +181,10 @@ identifying metadata, or narrative was added to the report or repository.
 ## Final completion-evidence snapshot — 2026-11-06
 
 This append-only snapshot records the review-fix head and supersedes the older
-counts where they differ. Code evidence below was measured at `351589e`
-(`fix: preserve latest presentation selection intent`), with the documentation
-update committed immediately afterward. The review-fix sequence is:
+counts where they differ. Production evidence below was measured at `351589e`
+(`fix: preserve latest presentation selection intent`); the routed-event test
+seam was then corrected in `8e81c94` without changing production behavior. The
+documentation update follows both commits. The review-fix sequence is:
 
 - `065a1b9`: one-way ListBox selection plus pending-selection protection, covering
   feedback-loop replay and work/note mixing while a selection is queued.
@@ -192,17 +193,19 @@ update committed immediately afterward. The review-fix sequence is:
 - `351589e`: explicit VM-to-ListBox synchronization with a programmatic-event
   marker, dispatcher-safe updates, and an A→B→A control-event regression. This
   preserves the user's return to A after B was queued behind an import.
+- `8e81c94`: raises the public Avalonia routed `SelectionChanged` event on the
+  actual XAML `WorksList`, removing private-handler reflection from the test.
 
 The final managed validation was:
 
-| Check | Command | Result at `351589e` |
+| Check | Command | Result at `351589e` / `8e81c94` |
 |---|---|---|
 | Application build | `dotnet build tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-restore -v minimal` | Passed: 5 projects, 0 errors, 0 warnings. |
 | Application suite | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-build --no-restore` | Passed: 43/43, 0 failed, 0 skipped. |
 | Architecture build | `dotnet build tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --configuration Release --no-restore -v minimal` | Passed: 7 projects, 0 errors, 0 warnings. |
 | Architecture suite | `dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --configuration Release --no-build --no-restore` | Passed: 11/11, 0 failed, 0 skipped. |
 | Release desktop build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --configuration Release --no-restore -v minimal` | Passed: 6 projects, 0 errors, 0 warnings. |
-| Cobertura coverage | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-build --no-restore --coverage --coverage-output review-followup-final-5.cobertura.xml --coverage-output-format cobertura` | Passed: 43/43; overall 88.52% line / 69.39% branch; Application 99.00% / 86.11%; Infrastructure 97.74% / 75.70%; Presentation 65.13% / 55.45%; Domain 0% / 0%. |
+| Cobertura coverage | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-build --no-restore --coverage --coverage-output review-followup-event.cobertura.xml --coverage-output-format cobertura` | Passed: 43/43; overall 88.52% line / 69.39% branch; Application 99.00% / 86.11%; Infrastructure 97.74% / 75.70%; Presentation 65.13% / 55.45%; Domain 0% / 0%. |
 
 The coverage report was generated from the Release binaries after the final
 code changes. It excludes the test assembly and does not claim Avalonia native
@@ -219,10 +222,14 @@ is a mutation of required mutation-gate cleanup; the runtime error was an MTP
 test-host crash. Because the MTP runner is still in preview and this run had a
 runtime error, this remains diagnostic evidence rather than a CI quality gate.
 
+The follow-up `8e81c94` changes only how the presentation regression raises the
+already-covered selection event; it does not change the Application mutation
+scope or production Application code.
+
 The old 54-mutant result in the earlier section is therefore explicitly tied
 to `63df474`; it was not silently presented as a rerun after `065a1b9` or
 `78a280f`. The remaining limitations are unchanged: no native/headless
 Avalonia session, no Android runtime execution, and no direct Domain behavior
 coverage. The new regression exercises the real XAML `MainView` and its
-selection handler through the managed test seam; it does not replace native
-device or desktop-picker evidence.
+public routed selection event through the managed test seam; it does not replace
+native device or desktop-picker evidence.
