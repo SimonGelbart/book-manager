@@ -42,7 +42,7 @@ cp /etc/hosts /tmp/tome-raider-reader-handoff.epub
 xdg-open /tmp/tome-raider-reader-handoff.epub
 ```
 
-`xdg-mime` returned no configured default. `xdg-open` reported routing the EPUB MIME type to File Roller, then the headless session reported `Failed to open display`; no user-visible reader session was established. The temporary file was removed after the check.
+`xdg-mime` returned no configured default. `xdg-open` reported routing the EPUB MIME type to File Roller and returned exit code 0, while the headless session reported `Failed to open display`; no user-visible reader session was established. This also demonstrates that a successful `xdg-open` request cannot prove that a graphical reader session was actually created. The temporary file was removed after the check.
 
 This verifies only that the host attempted MIME-based routing for an EPUB path. It is not evidence of a successful EPUB reader launch. A real reader handoff remains unverified until a graphical session with an EPUB-capable default application is available.
 
