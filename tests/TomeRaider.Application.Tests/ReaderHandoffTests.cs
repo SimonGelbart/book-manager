@@ -1,6 +1,7 @@
 using TomeRaider.Application;
 using TomeRaider.Domain;
 using TomeRaider.Infrastructure;
+using TomeRaider.Presentation;
 using TUnit.Assertions;
 using TUnit.Core;
 
@@ -92,6 +93,33 @@ public sealed class ReaderHandoffTests
             await Assert.That(result.Message).IsEqualTo("The associated reader could not be started.");
             await Assert.That(await application.GetWorkDetailsAsync(work.Id)).IsNotNull();
             await Assert.That((await application.GetWorkDetailsAsync(work.Id))!.Copies).Count().IsEqualTo(1);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ViewModelOpensACopyFromTheSelectedWorkAndReportsTheOutcome()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "visible.epub", "A Visible Work", "A. Reader");
+            var launcher = new ControlledReaderLauncher(ReaderLaunchResult.Opened("Opened the visible EPUB."));
+            var application = CreateApplication(workspace, launcher);
+            var viewModel = new MainViewModel(
+                new CatalogueSession(application, new PhysicalFileSource(workspace)));
+
+            await viewModel.SelectFolderAndImportAsync();
+            var copy = viewModel.WorkDetails!.Copies.Single();
+
+            await viewModel.OpenCopyAsync(copy);
+
+            await Assert.That(viewModel.StatusMessage).IsEqualTo("Opened the visible EPUB.");
+            await Assert.That(launcher.RequestedFiles).Count().IsEqualTo(1);
+            await Assert.That(launcher.RequestedFiles[0].Reference).IsEqualTo(copy.Reference);
         }
         finally
         {
