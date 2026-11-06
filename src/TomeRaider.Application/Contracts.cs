@@ -122,6 +122,31 @@ public sealed record CatalogueWorkDetails(
 
 public sealed record ReadingRecord(ReadingStatus Status, string? PersonalNote);
 
+public enum ReaderLaunchOutcome
+{
+    Opened,
+    CopyNotFound,
+    FileUnavailable,
+    LaunchFailed
+}
+
+public sealed record ReaderLaunchResult(ReaderLaunchOutcome Outcome, string Message)
+{
+    public bool Succeeded => Outcome == ReaderLaunchOutcome.Opened;
+
+    public static ReaderLaunchResult Opened(string message) =>
+        new(ReaderLaunchOutcome.Opened, message);
+
+    public static ReaderLaunchResult CopyNotFound(string message) =>
+        new(ReaderLaunchOutcome.CopyNotFound, message);
+
+    public static ReaderLaunchResult FileUnavailable(string message) =>
+        new(ReaderLaunchOutcome.FileUnavailable, message);
+
+    public static ReaderLaunchResult LaunchFailed(string message) =>
+        new(ReaderLaunchOutcome.LaunchFailed, message);
+}
+
 public sealed record ImportItemResult(
     SourceFile File,
     ImportedWork? Work,
@@ -215,6 +240,13 @@ public interface IFileSource
         CancellationToken cancellationToken = default);
 
     Task<Stream> OpenReadAsync(
+        SourceFile file,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IReaderLauncher
+{
+    Task<ReaderLaunchResult> LaunchAsync(
         SourceFile file,
         CancellationToken cancellationToken = default);
 }

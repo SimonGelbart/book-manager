@@ -1374,7 +1374,8 @@ public sealed class CapabilityProofTests
     {
         return new CatalogueApplication(
             new EpubMetadataExtractor(),
-            new SqliteCatalogue(databasePath));
+            new SqliteCatalogue(databasePath),
+            new TestReaderLauncher());
     }
 
     private static async Task AssertAo3PrefaceMessageAsync(string messageIntro)
@@ -1546,6 +1547,17 @@ public sealed class CapabilityProofTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult<Stream>(File.OpenRead(file.Reference));
+        }
+    }
+
+    private sealed class TestReaderLauncher : IReaderLauncher
+    {
+        public Task<ReaderLaunchResult> LaunchAsync(
+            SourceFile file,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(ReaderLaunchResult.Opened("The synthetic reader was requested."));
         }
     }
 }
