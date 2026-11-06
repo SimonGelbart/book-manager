@@ -28,8 +28,8 @@ public sealed class DesktopReaderLauncher : IReaderLauncher
             return Task.FromResult(process is null
                 ? ReaderLaunchResult.LaunchFailed(
                     $"The associated reader did not accept '{file.DisplayName}'.")
-                : ReaderLaunchResult.Opened(
-                    $"Opened '{file.DisplayName}' in the associated reader."));
+                : ReaderLaunchResult.LaunchRequested(
+                    $"Requested '{file.DisplayName}' in the associated reader."));
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

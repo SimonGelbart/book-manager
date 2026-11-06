@@ -124,7 +124,7 @@ public sealed record ReadingRecord(ReadingStatus Status, string? PersonalNote);
 
 public enum ReaderLaunchOutcome
 {
-    Opened,
+    LaunchRequested,
     CopyNotFound,
     FileUnavailable,
     LaunchFailed
@@ -132,10 +132,10 @@ public enum ReaderLaunchOutcome
 
 public sealed record ReaderLaunchResult(ReaderLaunchOutcome Outcome, string Message)
 {
-    public bool Succeeded => Outcome == ReaderLaunchOutcome.Opened;
+    public bool Succeeded => Outcome == ReaderLaunchOutcome.LaunchRequested;
 
-    public static ReaderLaunchResult Opened(string message) =>
-        new(ReaderLaunchOutcome.Opened, message);
+    public static ReaderLaunchResult LaunchRequested(string message) =>
+        new(ReaderLaunchOutcome.LaunchRequested, message);
 
     public static ReaderLaunchResult CopyNotFound(string message) =>
         new(ReaderLaunchOutcome.CopyNotFound, message);

@@ -1557,7 +1557,7 @@ public sealed class CapabilityProofTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(ReaderLaunchResult.Opened("The synthetic reader was requested."));
+            return Task.FromResult(ReaderLaunchResult.LaunchRequested("The synthetic reader was requested."));
         }
     }
 }

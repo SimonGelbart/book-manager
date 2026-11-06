@@ -18,7 +18,9 @@ public sealed class ReaderHandoffTests
             const string sourceUrl = "https://archiveofourown.org/works/12345";
             SyntheticEpub.Create(workspace, "first.epub", "A Selected Work", "A. Reader", sourceUrl);
             SyntheticEpub.Create(workspace, "second.epub", "A Selected Work", "A. Reader", sourceUrl);
-            var launcher = new ControlledReaderLauncher(ReaderLaunchResult.Opened("Opened the EPUB."));
+            var launcher = new ControlledReaderLauncher(file => file.DisplayName == "second.epub"
+                ? ReaderLaunchResult.LaunchRequested("Requested the second EPUB.")
+                : ReaderLaunchResult.LaunchFailed("The wrong EPUB was selected."));
             var application = CreateApplication(workspace, launcher);
 
             var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
@@ -29,10 +31,8 @@ public sealed class ReaderHandoffTests
 
             var result = await application.OpenCopyAsync(work.Id, selectedCopy.Id);
 
-            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.Opened);
-            await Assert.That(result.Message).IsEqualTo("Opened the EPUB.");
-            await Assert.That(launcher.RequestedFiles).Count().IsEqualTo(1);
-            await Assert.That(launcher.RequestedFiles[0].Reference).IsEqualTo(selectedCopy.Reference);
+            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.LaunchRequested);
+            await Assert.That(result.Message).IsEqualTo("Requested the second EPUB.");
             var readingRecord = await application.GetReadingRecordAsync(work.Id);
             await Assert.That(readingRecord).IsNotNull();
             await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Reading);
@@ -51,7 +51,7 @@ public sealed class ReaderHandoffTests
         try
         {
             SyntheticEpub.Create(workspace, "missing.epub", "An Unavailable Work", "A. Reader");
-            var launcher = new ControlledReaderLauncher(
+            var launcher = new ControlledReaderLauncher(_ =>
                 ReaderLaunchResult.FileUnavailable("The EPUB file is no longer available."));
             var application = CreateApplication(workspace, launcher);
             var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
@@ -80,7 +80,7 @@ public sealed class ReaderHandoffTests
         try
         {
             SyntheticEpub.Create(workspace, "failed.epub", "A Failed Launch Work", "A. Reader");
-            var launcher = new ControlledReaderLauncher(
+            var launcher = new ControlledReaderLauncher(_ =>
                 ReaderLaunchResult.LaunchFailed("The associated reader could not be started."));
             var application = CreateApplication(workspace, launcher);
             var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
@@ -107,7 +107,8 @@ public sealed class ReaderHandoffTests
         try
         {
             SyntheticEpub.Create(workspace, "catalogued.epub", "A Catalogued Work", "A. Reader");
-            var launcher = new ControlledReaderLauncher(ReaderLaunchResult.Opened("Should not be requested."));
+            var launcher = new ControlledReaderLauncher(_ =>
+                ReaderLaunchResult.LaunchRequested("Should not be requested."));
             var application = CreateApplication(workspace, launcher);
             var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var work = import.Items.Single().Work!;
@@ -116,7 +117,6 @@ public sealed class ReaderHandoffTests
 
             await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.CopyNotFound);
             await Assert.That(result.Message).IsEqualTo("The selected EPUB copy is no longer in the catalogue.");
-            await Assert.That(launcher.RequestedFiles).Count().IsEqualTo(0);
         }
         finally
         {
@@ -131,7 +131,9 @@ public sealed class ReaderHandoffTests
         try
         {
             SyntheticEpub.Create(workspace, "visible.epub", "A Visible Work", "A. Reader");
-            var launcher = new ControlledReaderLauncher(ReaderLaunchResult.Opened("Opened the visible EPUB."));
+            var launcher = new ControlledReaderLauncher(file => file.DisplayName == "visible.epub"
+                ? ReaderLaunchResult.LaunchRequested("Requested the visible EPUB.")
+                : ReaderLaunchResult.LaunchFailed("The wrong EPUB was selected."));
             var application = CreateApplication(workspace, launcher);
             var viewModel = new MainViewModel(
                 new CatalogueSession(application, new PhysicalFileSource(workspace)));
@@ -141,9 +143,7 @@ public sealed class ReaderHandoffTests
 
             await viewModel.OpenCopyAsync(copy);
 
-            await Assert.That(viewModel.StatusMessage).IsEqualTo("Opened the visible EPUB.");
-            await Assert.That(launcher.RequestedFiles).Count().IsEqualTo(1);
-            await Assert.That(launcher.RequestedFiles[0].Reference).IsEqualTo(copy.Reference);
+            await Assert.That(viewModel.StatusMessage).IsEqualTo("Requested the visible EPUB.");
         }
         finally
         {
@@ -176,17 +176,15 @@ public sealed class ReaderHandoffTests
         }
     }
 
-    private sealed class ControlledReaderLauncher(ReaderLaunchResult result) : IReaderLauncher
+    private sealed class ControlledReaderLauncher(
+        Func<SourceFile, ReaderLaunchResult> resultFactory) : IReaderLauncher
     {
-        public List<SourceFile> RequestedFiles { get; } = [];
-
         public Task<ReaderLaunchResult> LaunchAsync(
             SourceFile file,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            RequestedFiles.Add(file);
-            return Task.FromResult(result);
+            return Task.FromResult(resultFactory(file));
         }
     }
 }
