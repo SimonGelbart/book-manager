@@ -101,6 +101,30 @@ public sealed class ReaderHandoffTests
     }
 
     [Test]
+    public async Task ReportsWhenTheSelectedCopyIsNoLongerInTheCatalogue()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "catalogued.epub", "A Catalogued Work", "A. Reader");
+            var launcher = new ControlledReaderLauncher(ReaderLaunchResult.Opened("Should not be requested."));
+            var application = CreateApplication(workspace, launcher);
+            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var work = import.Items.Single().Work!;
+
+            var result = await application.OpenCopyAsync(work.Id, Guid.NewGuid());
+
+            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.CopyNotFound);
+            await Assert.That(result.Message).IsEqualTo("The selected EPUB copy is no longer in the catalogue.");
+            await Assert.That(launcher.RequestedFiles).Count().IsEqualTo(0);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
     public async Task ViewModelOpensACopyFromTheSelectedWorkAndReportsTheOutcome()
     {
         var workspace = CreateWorkspace();

@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using TomeRaider.Application;
 
@@ -32,7 +31,7 @@ public sealed class DesktopReaderLauncher : IReaderLauncher
                 : ReaderLaunchResult.Opened(
                     $"Opened '{file.DisplayName}' in the associated reader."));
         }
-        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             return Task.FromResult(ReaderLaunchResult.LaunchFailed(
                 $"The associated reader could not open '{file.DisplayName}': {exception.Message}"));
