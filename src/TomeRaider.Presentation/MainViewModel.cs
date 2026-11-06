@@ -107,6 +107,34 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    public async Task OpenCopyAsync(CatalogueCopy copy)
+    {
+        var workId = SelectedWork?.Id;
+        if (workId is null)
+        {
+            StatusMessage = "Select a work before opening an EPUB copy.";
+            return;
+        }
+
+        await operationGate.WaitAsync();
+        try
+        {
+            try
+            {
+                var result = await session.Application.OpenCopyAsync(workId.Value, copy.Id);
+                StatusMessage = result.Message;
+            }
+            catch (Exception exception)
+            {
+                StatusMessage = $"Could not open '{copy.DisplayName}': {exception.Message}";
+            }
+        }
+        finally
+        {
+            operationGate.Release();
+        }
+    }
+
     public Task ResolveImportReviewAsNewAsync(Guid reviewId)
     {
         return ResolveImportReviewAsync(reviewId, null);

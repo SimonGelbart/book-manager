@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using TomeRaider.Application;
 
 namespace TomeRaider.Presentation;
 
@@ -53,6 +54,15 @@ public partial class MainView : UserControl
         if (DataContext is MainViewModel viewModel)
         {
             await viewModel.SaveReadingAsync();
+        }
+    }
+
+    private async void OpenCopy(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel
+            && sender is Button { DataContext: CatalogueCopy copy })
+        {
+            await viewModel.OpenCopyAsync(copy);
         }
     }
 
