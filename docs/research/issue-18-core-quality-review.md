@@ -111,7 +111,8 @@ one survived. The survivor changed `sourceMatches > 1` to
 `sourceMatches >= 1`. The conflict-review test now asserts the exact reason,
 and the rerun killed that mutation.
 
-The final committed-scope run discovered 40 tests and created 54 mutants. Of
+The earlier final committed-scope run was measured at `63df474`, before the
+review-fix commits below. It discovered 40 tests and created 54 mutants. Of
 those, 18 were ignored by scope/block filtering; 36 were tested, 34 were
 killed, 0 survived, and 2 timed out. Stryker reported a 100.00% mutation score.
 Both timeouts were block-removal mutations of the centralized
@@ -176,3 +177,52 @@ so the result is useful evidence but is not yet a CI quality threshold.
 
 All automated fixtures used here are synthetic and temporary. No private EPUB,
 identifying metadata, or narrative was added to the report or repository.
+
+## Final completion-evidence snapshot — 2026-11-06
+
+This append-only snapshot records the review-fix head and supersedes the older
+counts where they differ. Code evidence below was measured at `351589e`
+(`fix: preserve latest presentation selection intent`), with the documentation
+update committed immediately afterward. The review-fix sequence is:
+
+- `065a1b9`: one-way ListBox selection plus pending-selection protection, covering
+  feedback-loop replay and work/note mixing while a selection is queued.
+- `78a280f`: bounded waits and cleanup for blocked presentation concurrency
+  fixtures.
+- `351589e`: explicit VM-to-ListBox synchronization with a programmatic-event
+  marker, dispatcher-safe updates, and an A→B→A control-event regression. This
+  preserves the user's return to A after B was queued behind an import.
+
+The final managed validation was:
+
+| Check | Command | Result at `351589e` |
+|---|---|---|
+| Application build | `dotnet build tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-restore -v minimal` | Passed: 5 projects, 0 errors, 0 warnings. |
+| Application suite | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-build --no-restore` | Passed: 43/43, 0 failed, 0 skipped. |
+| Architecture build | `dotnet build tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --configuration Release --no-restore -v minimal` | Passed: 7 projects, 0 errors, 0 warnings. |
+| Architecture suite | `dotnet test --project tests/TomeRaider.Architecture.Tests/TomeRaider.Architecture.Tests.csproj --configuration Release --no-build --no-restore` | Passed: 11/11, 0 failed, 0 skipped. |
+| Release desktop build | `dotnet build src/TomeRaider.Desktop/TomeRaider.Desktop.csproj --configuration Release --no-restore -v minimal` | Passed: 6 projects, 0 errors, 0 warnings. |
+| Cobertura coverage | `dotnet test --project tests/TomeRaider.Application.Tests/TomeRaider.Application.Tests.csproj --configuration Release --no-build --no-restore --coverage --coverage-output review-followup-final-5.cobertura.xml --coverage-output-format cobertura` | Passed: 43/43; overall 88.52% line / 69.39% branch; Application 99.00% / 86.11%; Infrastructure 97.74% / 75.70%; Presentation 65.13% / 55.45%; Domain 0% / 0%. |
+
+The coverage report was generated from the Release binaries after the final
+code changes. It excludes the test assembly and does not claim Avalonia native
+or headless UI execution. The earlier `84.16% / 66.23%` aggregate remains the
+measurement from the pre-review-fix snapshot, not a result of this head.
+
+The bounded Stryker campaign was rerun from
+`tests/TomeRaider.Application.Tests` at `351589e` with
+`dotnet tool run dotnet-stryker --config-file stryker-config.json`. It found 43
+tests and created 54 mutants: 18 ignored by scope/block filtering, 36 tested,
+34 killed, 0 survived, 1 timeout, and 1 test-host runtime error. Stryker
+reported a 100.00% score and an elapsed runtime of 33.79 seconds. The timeout
+is a mutation of required mutation-gate cleanup; the runtime error was an MTP
+test-host crash. Because the MTP runner is still in preview and this run had a
+runtime error, this remains diagnostic evidence rather than a CI quality gate.
+
+The old 54-mutant result in the earlier section is therefore explicitly tied
+to `63df474`; it was not silently presented as a rerun after `065a1b9` or
+`78a280f`. The remaining limitations are unchanged: no native/headless
+Avalonia session, no Android runtime execution, and no direct Domain behavior
+coverage. The new regression exercises the real XAML `MainView` and its
+selection handler through the managed test seam; it does not replace native
+device or desktop-picker evidence.
