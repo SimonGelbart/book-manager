@@ -233,3 +233,35 @@ Avalonia session, no Android runtime execution, and no direct Domain behavior
 coverage. The new regression exercises the real XAML `MainView` and its
 public routed selection event through the managed test seam; it does not replace
 native device or desktop-picker evidence.
+
+## Dispatcher follow-up snapshot — 2026-11-06
+
+The P2 review finding on `573970b` was confirmed by the cited push-CI failure
+and by an independent local Release failure: the ViewModel details signal did
+not prove that the posted `ListBox` synchronization had run. Commit `5d07375`
+(`fix: run presentation proofs on controlled dispatcher`) addresses that
+finding within the existing Presentation capability-proof scope:
+
+- `MainView.SyncSelectedWork` posts through `WorksList.Dispatcher`, keeping the
+  control's dispatcher as the synchronization target.
+- Both affected `MainView` regressions create the real XAML control and execute
+  setup, routed events, queued selection work, and final assertions inside a
+  dedicated Avalonia dispatcher lifecycle.
+- The tests assert the actual `WorksList.SelectedItem` as well as the
+  ViewModel/details state, retain the five-second deadlines, and wait for the
+  dispatcher thread to exit before fixture cleanup.
+
+Validation at `5d07375`:
+
+| Check | Result |
+|---|---|
+| Application Release build | Passed: 5 projects, 0 errors, 0 warnings. |
+| Application Release suite | Passed; repeated runs completed successfully. |
+| Architecture Release build and suite | Passed; 0 errors and 0 warnings; 11 tests. |
+| Release desktop build | Passed: 6 projects, 0 errors, 0 warnings. |
+| Cobertura coverage | Passed; 88.25% line / 69.23% branch overall in the generated report. |
+
+The dispatcher follow-up does not claim native/headless Avalonia, Android
+runtime, or Domain behavior coverage, and Stryker was not rerun for this
+test-boundary correction. The earlier mutation result and its limitations
+remain tied to the revisions recorded above.
