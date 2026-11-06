@@ -1,0 +1,94 @@
+name: Android nightly package
+
+# This workflow verifies clean-runner restore, compilation, and APK packaging.
+# It does not exercise the interactive picker, persisted document grants,
+# application/device restart behavior, or a physical Android device. Those
+# checks are recorded separately in the capability-proof issue and research.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_SDK_DIR: ${{ runner.temp }}/android-sdk
+      JAVA_SDK_DIR: ${{ runner.temp }}/jdk
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up the pinned .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Prepare runner-local directories
+        run: mkdir -p "$RUNNER_TEMP/android-logs" "$RUNNER_TEMP/android-publish"
+
+      - name: Install the Android workload
+        run: |
+          set -o pipefail
+          dotnet workload install android --version 10.0.402 2>&1 | tee "$RUNNER_TEMP/android-logs/workload-install.log"
+
+      - name: Restore the Android project from the lock file
+        run: |
+          set -o pipefail
+          dotnet restore src/TomeRaider.Android/TomeRaider.Android.csproj --locked-mode 2>&1 | tee "$RUNNER_TEMP/android-logs/restore.log"
+
+      - name: Install Android SDK and JDK dependencies
+        run: |
+          set -o pipefail
+          dotnet build src/TomeRaider.Android/TomeRaider.Android.csproj \
+            --configuration Release \
+            --no-restore \
+            -t:InstallAndroidDependencies \
+            -f:net10.0-android36.0 \
+            -p:AndroidSdkDirectory="$ANDROID_SDK_DIR" \
+            -p:JavaSdkDirectory="$JAVA_SDK_DIR" \
+            -p:AcceptAndroidSDKLicenses=True 2>&1 | tee "$RUNNER_TEMP/android-logs/dependency-install.log"
+
+      - name: Build the Android project
+        run: |
+          set -o pipefail
+          dotnet build src/TomeRaider.Android/TomeRaider.Android.csproj \
+            --configuration Release \
+            --no-restore \
+            -p:RunAOTCompilation=false \
+            -p:AndroidSdkDirectory="$ANDROID_SDK_DIR" \
+            -p:JavaSdkDirectory="$JAVA_SDK_DIR" 2>&1 | tee "$RUNNER_TEMP/android-logs/build.log"
+
+      - name: Publish the Release APK
+        run: |
+          set -o pipefail
+          dotnet publish src/TomeRaider.Android/TomeRaider.Android.csproj \
+            --configuration Release \
+            --no-restore \
+            --output "$RUNNER_TEMP/android-publish" \
+            -p:RunAOTCompilation=false \
+            -p:AndroidSdkDirectory="$ANDROID_SDK_DIR" \
+            -p:JavaSdkDirectory="$JAVA_SDK_DIR" 2>&1 | tee "$RUNNER_TEMP/android-logs/publish.log"
+
+      - name: Verify that an APK was produced
+        run: |
+          set -o pipefail
+          apk_path="$(find "$RUNNER_TEMP/android-publish" -type f -name '*.apk' -print -quit)"
+          test -n "$apk_path"
+          printf 'Generated APK: %s\n' "$apk_path" | tee "$RUNNER_TEMP/android-logs/apk-verification.log"
+
+      - name: Upload Android APK and build logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-nightly-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/android-publish/**/*.apk
+            ${{ runner.temp }}/android-logs/*.log
+          if-no-files-found: warn
+          retention-days: 14
