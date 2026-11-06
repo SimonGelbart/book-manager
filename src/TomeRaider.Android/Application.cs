@@ -30,7 +30,8 @@ public class MainApplication : AvaloniaAndroidApplication<App>
         return new CatalogueSession(
             new CatalogueApplication(
                 new EpubMetadataExtractor(),
-                new SqliteCatalogue(Path.Combine(dataDirectory, "catalogue.sqlite"))),
+                new SqliteCatalogue(Path.Combine(dataDirectory, "catalogue.sqlite")),
+                new UnsupportedReaderLauncher("Desktop reader handoff is not available on Android.")),
             new AvaloniaStorageFileSource(
                 storageProvider,
                 new JsonFolderBookmarkStore(Path.Combine(dataDirectory, "folder-bookmark.json"))));

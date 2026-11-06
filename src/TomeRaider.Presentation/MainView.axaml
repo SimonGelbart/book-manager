@@ -141,6 +141,9 @@
                 <StackPanel Margin="0,0,0,4">
                   <TextBlock Text="{Binding DisplayName, StringFormat='File: {0}'}" />
                   <TextBlock Text="{Binding Reference, StringFormat='Location: {0}'}" TextWrapping="Wrap" />
+                  <Button Content="Open in reader"
+                          Click="OpenCopy"
+                          HorizontalAlignment="Left" />
                 </StackPanel>
               </DataTemplate>
             </ItemsControl.ItemTemplate>

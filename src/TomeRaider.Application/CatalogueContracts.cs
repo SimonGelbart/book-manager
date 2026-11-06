@@ -34,4 +34,29 @@ public sealed record CatalogueWorkDetails(
     int? TotalChapterCount,
     IReadOnlyList<CatalogueCopy> Copies);
 
+public enum ReaderLaunchOutcome
+{
+    LaunchRequested,
+    CopyNotFound,
+    FileUnavailable,
+    LaunchFailed
+}
+
+public sealed record ReaderLaunchResult(ReaderLaunchOutcome Outcome, string Message)
+{
+    public bool Succeeded => Outcome == ReaderLaunchOutcome.LaunchRequested;
+
+    public static ReaderLaunchResult LaunchRequested(string message) =>
+        new(ReaderLaunchOutcome.LaunchRequested, message);
+
+    public static ReaderLaunchResult CopyNotFound(string message) =>
+        new(ReaderLaunchOutcome.CopyNotFound, message);
+
+    public static ReaderLaunchResult FileUnavailable(string message) =>
+        new(ReaderLaunchOutcome.FileUnavailable, message);
+
+    public static ReaderLaunchResult LaunchFailed(string message) =>
+        new(ReaderLaunchOutcome.LaunchFailed, message);
+}
+
 public sealed record ReadingRecord(ReadingStatus Status, string? PersonalNote);
