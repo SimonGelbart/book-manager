@@ -8,6 +8,7 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private readonly CatalogueSession session;
     private readonly SemaphoreSlim operationGate = new(1, 1);
+    private Guid? pendingSelectionId;
 
     public MainViewModel(CatalogueSession session)
     {
@@ -72,6 +73,12 @@ public sealed partial class MainViewModel : ObservableObject
 
     public Task SaveReadingAsync()
     {
+        if (pendingSelectionId is not null)
+        {
+            StatusMessage = "Wait for the selected work to finish loading before saving its reading record.";
+            return Task.CompletedTask;
+        }
+
         var workId = SelectedWork?.Id ?? SelectedItem?.Work?.Id;
         var title = SelectedWork?.Title ?? SelectedItem?.Work?.Title ?? "work";
         var personalNote = PersonalNote;
@@ -131,23 +138,35 @@ public sealed partial class MainViewModel : ObservableObject
         SelectedWork = null;
         WorkDetails = null;
         PersonalNote = string.Empty;
+        pendingSelectionId = null;
         IsClearCollectionConfirmationVisible = false;
         StatusMessage = "Collection cleared.";
     }
 
     public Task SelectWorkAsync(Guid workId)
     {
+        pendingSelectionId = workId;
         return RunSerializedAsync(() => SelectWorkCoreAsync(workId));
     }
 
     private async Task SelectWorkCoreAsync(Guid workId)
     {
-        SelectedWork = Works.FirstOrDefault(work => work.Id == workId);
-        var details = SelectedWork is null
-            ? null
-            : await session.Application.GetWorkDetailsAsync(workId);
-        WorkDetails = details is null ? null : new WorkDetailsViewModel(details);
-        PersonalNote = WorkDetails?.PersonalNote ?? string.Empty;
+        try
+        {
+            SelectedWork = Works.FirstOrDefault(work => work.Id == workId);
+            var details = SelectedWork is null
+                ? null
+                : await session.Application.GetWorkDetailsAsync(workId);
+            WorkDetails = details is null ? null : new WorkDetailsViewModel(details);
+            PersonalNote = WorkDetails?.PersonalNote ?? string.Empty;
+        }
+        finally
+        {
+            if (pendingSelectionId == workId)
+            {
+                pendingSelectionId = null;
+            }
+        }
     }
 
     private Task ImportAsync(Func<Task<ImportResult>> import)

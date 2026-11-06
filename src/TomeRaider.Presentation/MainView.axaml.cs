@@ -101,7 +101,8 @@ public partial class MainView : UserControl
     private async void SelectWork(object? sender, SelectionChangedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel
-            && sender is ListBox { SelectedItem: WorkSummaryViewModel work })
+            && sender is ListBox { SelectedItem: WorkSummaryViewModel work }
+            && viewModel.SelectedWork?.Id != work.Id)
         {
             await viewModel.SelectWorkAsync(work.Id);
         }
