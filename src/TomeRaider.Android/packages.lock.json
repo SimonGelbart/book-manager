@@ -20,7 +20,7 @@
         "type": "Direct",
         "requested": "[10.0.14, )",
         "resolved": "10.0.14",
-        "contentHash": "XWAqjHxYj1M7RLohprpooL3a/+E9CfjsPvmuZzjO7X0CxOY4kNhRjZiK5ooRTZBMYzC5karrQ6Rq5fz9zi8V8w=="
+        "contentHash": "YlTamXppEQls6DYWt7RdUuwWDb0lyw/vXCaGeQpLCpsLmfwGuCkOz/vIGgMTV7ECsJcavkCOkxZXv9s8rdAHkQ=="
       },
       "Xamarin.AndroidX.Core.SplashScreen": {
         "type": "Direct",
