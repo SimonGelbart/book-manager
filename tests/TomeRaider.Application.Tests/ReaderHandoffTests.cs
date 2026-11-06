@@ -45,6 +45,88 @@ public sealed class ReaderHandoffTests
         }
     }
 
+    [Test]
+    public async Task ReportsAnInaccessibleCopyAndPreservesTheReadingRecord()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "missing.epub", "An Unavailable Work", "A. Reader");
+            var launcher = new ControlledReaderLauncher(_ =>
+                ReaderLaunchResult.FileUnavailable("The EPUB file is no longer available."));
+            var application = CreateApplication(workspace, launcher);
+            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var work = import.Items.Single().Work!;
+            await application.SaveReadingRecordAsync(work.Id, ReadingStatus.Read, "Already read.");
+            var copy = (await application.GetWorkDetailsAsync(work.Id))!.Copies.Single();
+
+            var result = await application.OpenCopyAsync(work.Id, copy.Id);
+
+            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.FileUnavailable);
+            await Assert.That(result.Message).IsEqualTo("The EPUB file is no longer available.");
+            var readingRecord = await application.GetReadingRecordAsync(work.Id);
+            await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Read);
+            await Assert.That(readingRecord.PersonalNote).IsEqualTo("Already read.");
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ReportsAReaderLaunchFailureAndPreservesTheCatalogue()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "failed.epub", "A Failed Launch Work", "A. Reader");
+            var launcher = new ControlledReaderLauncher(_ =>
+                ReaderLaunchResult.LaunchFailed("The associated reader could not be started."));
+            var application = CreateApplication(workspace, launcher);
+            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var work = import.Items.Single().Work!;
+            var copy = (await application.GetWorkDetailsAsync(work.Id))!.Copies.Single();
+
+            var result = await application.OpenCopyAsync(work.Id, copy.Id);
+
+            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.LaunchFailed);
+            await Assert.That(result.Message).IsEqualTo("The associated reader could not be started.");
+            var details = await application.GetWorkDetailsAsync(work.Id);
+            await Assert.That(details).IsNotNull();
+            await Assert.That(details!.Copies).Count().IsEqualTo(1);
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
+    [Test]
+    public async Task ReportsWhenTheSelectedCopyIsNoLongerInTheCatalogue()
+    {
+        var workspace = CreateWorkspace();
+        try
+        {
+            SyntheticEpub.Create(workspace, "catalogued.epub", "A Catalogued Work", "A. Reader");
+            var launcher = new ControlledReaderLauncher(_ =>
+                ReaderLaunchResult.LaunchRequested("Should not be requested."));
+            var application = CreateApplication(workspace, launcher);
+            var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
+            var work = import.Items.Single().Work!;
+
+            var result = await application.OpenCopyAsync(work.Id, Guid.NewGuid());
+
+            await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.CopyNotFound);
+            await Assert.That(result.Message).IsEqualTo("The selected EPUB copy is no longer in the catalogue.");
+            await Assert.That(launcher.RequestedFiles).IsEmpty();
+        }
+        finally
+        {
+            DeleteWorkspace(workspace);
+        }
+    }
+
     private static CatalogueApplication CreateApplication(
         string workspace,
         IReaderLauncher readerLauncher)
