@@ -3,7 +3,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 
 namespace TomeRaider.Presentation;
 
@@ -56,7 +55,7 @@ public partial class MainView : UserControl
     {
         if (!WorksList.CheckAccess())
         {
-            Dispatcher.UIThread.Post(() =>
+            WorksList.Dispatcher.Post(() =>
             {
                 if (ReferenceEquals(DataContext, viewModel))
                 {

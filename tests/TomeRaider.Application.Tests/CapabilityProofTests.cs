@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using System.Collections;
 using TomeRaider.Application;
 using TomeRaider.Domain;
@@ -1377,16 +1378,20 @@ public sealed class CapabilityProofTests
             var firstWork = viewModel.Works.Single(work => work.Title == "First Work");
             var secondWork = viewModel.Works.Single(work => work.Title == "Second Work");
             await viewModel.SelectWorkAsync(firstWork.Id);
-            var view = new MainView();
-            view.DataContext = viewModel;
-            var worksList = view.FindControl<ListBox>("WorksList");
+            await RunOnAvaloniaDispatcherAsync(async () =>
+            {
+                var view = new MainView();
+                view.DataContext = viewModel;
+                var worksList = view.FindControl<ListBox>("WorksList");
 
-            await Assert.That(worksList).IsNotNull();
-            viewModel.SelectedWork = secondWork;
-            await Task.Yield();
+                await Assert.That(worksList).IsNotNull();
+                viewModel.SelectedWork = secondWork;
 
-            await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(secondWork.Id);
-            await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+                await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(secondWork.Id);
+                await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+                await Assert.That(((WorkSummaryViewModel)worksList!.SelectedItem!).Id)
+                    .IsEqualTo(secondWork.Id);
+            });
         }
         finally
         {
@@ -1421,44 +1426,48 @@ public sealed class CapabilityProofTests
             await viewModel.InitializeAsync();
             var firstWork = viewModel.Works.Single(work => work.Id == firstWorkId);
             var secondWork = viewModel.Works.Single(work => work.Id == secondWorkId);
-            var view = new MainView();
-            view.DataContext = viewModel;
-            var worksList = view.FindControl<ListBox>("WorksList");
-            var finalDetailsLoaded = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            viewModel.PropertyChanged += (_, args) =>
+            await RunOnAvaloniaDispatcherAsync(async () =>
             {
-                if (args.PropertyName == nameof(MainViewModel.WorkDetails)
-                    && viewModel.WorkDetails?.Title == "First Work")
+                var view = new MainView();
+                view.DataContext = viewModel;
+                var worksList = view.FindControl<ListBox>("WorksList");
+                var finalDetailsLoaded = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                viewModel.PropertyChanged += (_, args) =>
                 {
-                    finalDetailsLoaded.TrySetResult(true);
-                }
-            };
+                    if (args.PropertyName == nameof(MainViewModel.WorkDetails)
+                        && viewModel.WorkDetails?.Title == "First Work")
+                    {
+                        finalDetailsLoaded.TrySetResult(true);
+                    }
+                };
 
-            await Assert.That(worksList).IsNotNull();
-            importTask = viewModel.SelectFolderAndImportAsync();
-            await blockingSource.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
-            worksList!.SetCurrentValue(ListBox.SelectedItemProperty, secondWork);
-            worksList.RaiseEvent(new SelectionChangedEventArgs(
-                ListBox.SelectionChangedEvent,
-                new ArrayList { secondWork },
-                new ArrayList()));
-            worksList.SetCurrentValue(ListBox.SelectedItemProperty, firstWork);
-            worksList.RaiseEvent(new SelectionChangedEventArgs(
-                ListBox.SelectionChangedEvent,
-                new ArrayList { firstWork },
-                new ArrayList { secondWork }));
+                await Assert.That(worksList).IsNotNull();
+                importTask = viewModel.SelectFolderAndImportAsync();
+                await blockingSource.EnumerationStarted.WaitAsync(ConcurrencyTimeout);
+                worksList!.SetCurrentValue(ListBox.SelectedItemProperty, secondWork);
+                worksList.RaiseEvent(new SelectionChangedEventArgs(
+                    ListBox.SelectionChangedEvent,
+                    new ArrayList { secondWork },
+                    new ArrayList()));
+                worksList.SetCurrentValue(ListBox.SelectedItemProperty, firstWork);
+                worksList.RaiseEvent(new SelectionChangedEventArgs(
+                    ListBox.SelectionChangedEvent,
+                    new ArrayList { firstWork },
+                    new ArrayList { secondWork }));
 
-            await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
-            await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+                await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
+                await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
 
-            blockingSource.ReleaseEnumeration();
-            await importTask.WaitAsync(ConcurrencyTimeout);
-            await finalDetailsLoaded.Task.WaitAsync(ConcurrencyTimeout);
+                blockingSource.ReleaseEnumeration();
+                await importTask.WaitAsync(ConcurrencyTimeout);
+                await finalDetailsLoaded.Task.WaitAsync(ConcurrencyTimeout);
 
-            await Assert.That(((WorkSummaryViewModel)worksList.SelectedItem!).Id).IsEqualTo(firstWorkId);
-            await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
-            await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+                await Assert.That(((WorkSummaryViewModel)worksList.SelectedItem!).Id)
+                    .IsEqualTo(firstWorkId);
+                await Assert.That(viewModel.SelectedWork!.Id).IsEqualTo(firstWorkId);
+                await Assert.That(viewModel.WorkDetails!.Title).IsEqualTo("First Work");
+            });
         }
         finally
         {
@@ -1720,6 +1729,53 @@ public sealed class CapabilityProofTests
         {
             Directory.Delete(path, recursive: true);
         }
+    }
+
+    private static async Task RunOnAvaloniaDispatcherAsync(Func<Task> operation)
+    {
+        var completion = new TaskCompletionSource<object?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var threadExited = new TaskCompletionSource<object?>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var dispatcher = Dispatcher.CurrentDispatcher;
+                AvaloniaSynchronizationContext.InstallIfNeeded();
+                dispatcher.Post(async () =>
+                {
+                    try
+                    {
+                        await operation();
+                        completion.TrySetResult(null);
+                    }
+                    catch (Exception exception)
+                    {
+                        completion.TrySetException(exception);
+                    }
+                    finally
+                    {
+                        dispatcher.InvokeShutdown();
+                    }
+                }, DispatcherPriority.Default);
+                dispatcher.MainLoop(CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
+            }
+            finally
+            {
+                threadExited.TrySetResult(null);
+            }
+        })
+        {
+            IsBackground = true
+        };
+        thread.Start();
+        await completion.Task.WaitAsync(ConcurrencyTimeout);
+        await threadExited.Task.WaitAsync(ConcurrencyTimeout);
     }
 
     private static async Task DrainBlockedOperationsAsync(
