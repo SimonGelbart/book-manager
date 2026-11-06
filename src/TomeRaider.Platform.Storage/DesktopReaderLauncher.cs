@@ -5,7 +5,7 @@ namespace TomeRaider.Platform.Storage;
 
 public sealed class DesktopReaderLauncher : IReaderLauncher
 {
-    public Task<ReaderLaunchResult> LaunchAsync(
+    public async Task<ReaderLaunchResult> LaunchAsync(
         SourceFile file,
         CancellationToken cancellationToken = default)
     {
@@ -13,8 +13,8 @@ public sealed class DesktopReaderLauncher : IReaderLauncher
         var localPath = ResolveLocalPath(file.Reference);
         if (localPath is null || !File.Exists(localPath))
         {
-            return Task.FromResult(ReaderLaunchResult.FileUnavailable(
-                $"The EPUB file '{file.DisplayName}' is not available."));
+            return ReaderLaunchResult.FileUnavailable(
+                $"The EPUB file '{file.DisplayName}' is not available.");
         }
 
         try
@@ -25,17 +25,39 @@ public sealed class DesktopReaderLauncher : IReaderLauncher
                 UseShellExecute = true
             });
 
-            return Task.FromResult(process is null
+            if (process is null)
+            {
+                return ReaderLaunchResult.LaunchFailed(
+                    $"The associated reader did not accept '{file.DisplayName}'.");
+            }
+
+            var exited = await WaitForExitWithinAsync(
+                process,
+                TimeSpan.FromSeconds(2),
+                cancellationToken);
+            return exited && process.ExitCode != 0
                 ? ReaderLaunchResult.LaunchFailed(
-                    $"The associated reader did not accept '{file.DisplayName}'.")
+                    $"The associated reader failed to open '{file.DisplayName}' (exit code {process.ExitCode}).")
                 : ReaderLaunchResult.LaunchRequested(
-                    $"Requested '{file.DisplayName}' in the associated reader."));
+                    $"Requested '{file.DisplayName}' in the associated reader.");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            return Task.FromResult(ReaderLaunchResult.LaunchFailed(
-                $"The associated reader could not open '{file.DisplayName}': {exception.Message}"));
+            return ReaderLaunchResult.LaunchFailed(
+                $"The associated reader could not open '{file.DisplayName}': {exception.Message}");
         }
+    }
+
+    private static async Task<bool> WaitForExitWithinAsync(
+        Process process,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        var waitForExit = process.WaitForExitAsync(cancellationToken);
+        var timeoutTask = Task.Delay(timeout, cancellationToken);
+        var completed = await Task.WhenAny(waitForExit, timeoutTask);
+        cancellationToken.ThrowIfCancellationRequested();
+        return completed == waitForExit;
     }
 
     private static string? ResolveLocalPath(string reference)

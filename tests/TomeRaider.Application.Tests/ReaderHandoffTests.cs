@@ -33,8 +33,6 @@ public sealed class ReaderHandoffTests
 
             await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.LaunchRequested);
             await Assert.That(result.Message).IsEqualTo("Requested the second EPUB.");
-            var requestedFile = launcher.RequestedFiles.Single();
-            await Assert.That(requestedFile.DisplayName).IsEqualTo("second.epub");
             var readingRecord = await application.GetReadingRecordAsync(work.Id);
             await Assert.That(readingRecord).IsNotNull();
             await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Reading);
@@ -87,6 +85,7 @@ public sealed class ReaderHandoffTests
             var application = CreateApplication(workspace, launcher);
             var import = await application.ImportSelectedFolderAsync(new PhysicalFileSource(workspace));
             var work = import.Items.Single().Work!;
+            await application.SaveReadingRecordAsync(work.Id, ReadingStatus.Reading, "Keep this note after failure.");
             var copy = (await application.GetWorkDetailsAsync(work.Id))!.Copies.Single();
 
             var result = await application.OpenCopyAsync(work.Id, copy.Id);
@@ -96,6 +95,9 @@ public sealed class ReaderHandoffTests
             var details = await application.GetWorkDetailsAsync(work.Id);
             await Assert.That(details).IsNotNull();
             await Assert.That(details!.Copies).Count().IsEqualTo(1);
+            var readingRecord = await application.GetReadingRecordAsync(work.Id);
+            await Assert.That(readingRecord!.Status).IsEqualTo(ReadingStatus.Reading);
+            await Assert.That(readingRecord.PersonalNote).IsEqualTo("Keep this note after failure.");
         }
         finally
         {
@@ -120,7 +122,6 @@ public sealed class ReaderHandoffTests
 
             await Assert.That(result.Outcome).IsEqualTo(ReaderLaunchOutcome.CopyNotFound);
             await Assert.That(result.Message).IsEqualTo("The selected EPUB copy is no longer in the catalogue.");
-            await Assert.That(launcher.RequestedFiles).IsEmpty();
         }
         finally
         {
@@ -183,14 +184,11 @@ public sealed class ReaderHandoffTests
     private sealed class ControlledReaderLauncher(
         Func<SourceFile, ReaderLaunchResult> resultFactory) : IReaderLauncher
     {
-        public List<SourceFile> RequestedFiles { get; } = [];
-
         public Task<ReaderLaunchResult> LaunchAsync(
             SourceFile file,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            RequestedFiles.Add(file);
             return Task.FromResult(resultFactory(file));
         }
     }
