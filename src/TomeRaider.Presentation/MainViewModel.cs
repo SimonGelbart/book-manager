@@ -93,6 +93,24 @@ public sealed partial class MainViewModel : ObservableObject
             exception => $"Could not save the reading record: {exception.Message}");
     }
 
+    public Task OpenCopyAsync(CatalogueCopy copy)
+    {
+        var workId = SelectedWork?.Id;
+        if (workId is null)
+        {
+            StatusMessage = "Select a work before opening an EPUB copy.";
+            return Task.CompletedTask;
+        }
+
+        return RunOperationAsync(
+            async () =>
+            {
+                var result = await session.Application.OpenCopyAsync(workId.Value, copy.Id);
+                StatusMessage = result.Message;
+            },
+            exception => $"Could not open '{copy.DisplayName}': {exception.Message}");
+    }
+
     private async Task SaveReadingCoreAsync(Guid workId, string title, string personalNote)
     {
         await session.Application.SaveAsReadAsync(workId, personalNote);
